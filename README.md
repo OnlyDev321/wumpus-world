@@ -139,7 +139,7 @@ pip install -r requirements.txt
 ### 6. 프로그램 실행
 
 ```bash
-python main.py
+python3/python main.py
 ```
 
 ---
