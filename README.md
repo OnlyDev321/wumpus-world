@@ -101,13 +101,13 @@ Agent는 현재 위치에서 얻은 정보를 **Memory**에 저장하고, `rules
 ### 1. 프로젝트 클론
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/OnlyDev321/wumpus-world.git
 ```
 
 ### 2. 프로젝트 이동
 
 ```bash
-cd <project-directory>
+cd wumpus-world
 ```
 
 ### 3. 가상환경 생성
