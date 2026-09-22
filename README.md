@@ -154,6 +154,7 @@ Pygame 기반으로 제작된 인터페이스는 직관적인 정보 전달과 �
 | <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | **수동 조작 (Manual Move)**       | 사용자가 직접 상하좌우로 이동하여 AI와 플레이를 비교할 수 있습니다. |
 | <kbd>Shift</kbd> + <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | **수동 활 쏘기 (Manual Shoot)** | 해당 방향으로 화살을 발사하여 Wumpus를 공격합니다. (1회 제한) |
 |                    <kbd>G</kbd>                     | **수동 줍기 (Manual Grab)**       | 현재 위치한 칸의 Gold를 수동으로 획득합니다.                        |
+|                    <kbd>C</kbd>                     | **수동 탈출 (Manual Climb)**      | 입구 (3, 0)에서 동굴 밖으로 탈출하여 게임을 완료합니다.             |
 
 ---
 

@@ -185,3 +185,18 @@ class GameManager:
             self.add_log(f"🏹 Manual Shot {direction}: Arrow missed.")
         self.agent.reason(self.world.is_wumpus_alive)
 
+    def manual_climb(self):
+        """Allows player manual climb out / exit at the cave entrance."""
+        if self.game_over:
+            return
+        if self.agent.position == self.world.start_pos:
+            self.game_over = True
+            if self.agent.has_gold:
+                self.victory = True
+                self.add_log("🏆 VICTORY! Player climbed out with Gold!")
+            else:
+                self.add_log("Player climbed out safely without gold.")
+        else:
+            self.add_log("Cannot climb out! You must return to the entrance (3, 0).")
+
+

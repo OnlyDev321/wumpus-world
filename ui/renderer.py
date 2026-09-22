@@ -417,7 +417,7 @@ class Renderer:
         pygame.draw.rect(self.screen, self.COLOR_PANEL_BORDER, hotkey_box, 1, border_radius=6)
 
         hk1 = self.font_small.render("[SPACE] Step  |  [A] Auto  |  [TAB] Fog", True, self.COLOR_CYAN)
-        hk2 = self.font_small.render("[R] Reset  |  [M] Random Map  |  [G] Grab", True, self.COLOR_TEXT_MUTED)
+        hk2 = self.font_small.render("[G] Grab  |  [C] Climb  |  [R] Reset  |  [M] Random", True, self.COLOR_TEXT_MUTED)
         self.screen.blit(hk1, (hud_x + 24, footer_y + 6))
         self.screen.blit(hk2, (hud_x + 24, footer_y + 22))
 

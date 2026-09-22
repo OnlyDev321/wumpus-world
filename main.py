@@ -78,6 +78,9 @@ def main():
                 elif event.key == pygame.K_g:
                     game_manager.manual_grab()
 
+                elif event.key == pygame.K_c:
+                    game_manager.manual_climb()
+
         # ==============================================================
         # Auto Mode step update
         # ==============================================================
