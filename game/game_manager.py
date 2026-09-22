@@ -167,3 +167,21 @@ class GameManager:
             self.agent.has_gold = True
             self.score += 1000
             self.add_log("✨ Player grabbed Gold (+1000)!")
+
+    def manual_shoot(self, direction):
+        """Allows manual player shooting in a given direction ('UP', 'DOWN', 'LEFT', 'RIGHT')."""
+        if self.game_over:
+            return
+        if not self.agent.has_arrow:
+            self.add_log("🏹 No arrows left!")
+            return
+
+        self.agent.has_arrow = False
+        self.score -= 10
+        hit = self.world.shoot_arrow(self.agent.position, direction)
+        if hit:
+            self.add_log(f"🏹 Manual Shot {direction}: WUMPUS SLAIN! Horrific scream heard!")
+        else:
+            self.add_log(f"🏹 Manual Shot {direction}: Arrow missed.")
+        self.agent.reason(self.world.is_wumpus_alive)
+

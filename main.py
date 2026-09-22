@@ -56,14 +56,25 @@ def main():
                     renderer.reveal_all = not renderer.reveal_all
 
                 # 3. Manual player controls (to compare with AI)
-                elif event.key == pygame.K_UP:
-                    game_manager.manual_move(-1, 0)
-                elif event.key == pygame.K_DOWN:
-                    game_manager.manual_move(1, 0)
-                elif event.key == pygame.K_LEFT:
-                    game_manager.manual_move(0, -1)
-                elif event.key == pygame.K_RIGHT:
-                    game_manager.manual_move(0, 1)
+                elif event.key in (pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT):
+                    is_shift = bool(pygame.key.get_mods() & pygame.KMOD_SHIFT)
+                    if is_shift:
+                        dir_map = {
+                            pygame.K_UP: "UP",
+                            pygame.K_DOWN: "DOWN",
+                            pygame.K_LEFT: "LEFT",
+                            pygame.K_RIGHT: "RIGHT",
+                        }
+                        game_manager.manual_shoot(dir_map[event.key])
+                    else:
+                        move_map = {
+                            pygame.K_UP: (-1, 0),
+                            pygame.K_DOWN: (1, 0),
+                            pygame.K_LEFT: (0, -1),
+                            pygame.K_RIGHT: (0, 1),
+                        }
+                        game_manager.manual_move(*move_map[event.key])
+
                 elif event.key == pygame.K_g:
                     game_manager.manual_grab()
 
