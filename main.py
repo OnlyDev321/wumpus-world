@@ -47,7 +47,7 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-        # Bắt sự kiện nhấn phím
+       # Handle keyboard events
         elif event.type == pygame.KEYDOWN:
 
             if event.key == pygame.K_UP:
