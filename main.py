@@ -1,8 +1,8 @@
-
 import pygame
 
 from game.world import World
 from game.agent import Agent
+from ui.renderer import Renderer
 
 
 pygame.init()
@@ -18,8 +18,6 @@ CELL_SIZE = 150
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Wumpus World")
 
-font = pygame.font.Font(None, 80)
-
 # ==============================
 # World and Agent
 # ==============================
@@ -29,6 +27,9 @@ agent = Agent()
 
 # Synchronize the Agent's initial position with the World
 world.agent_position = agent.position
+
+# Create Renderer
+renderer = Renderer(screen, CELL_SIZE)
 
 # ==============================
 # Main loop
@@ -47,7 +48,7 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-       # Handle keyboard events
+        # Handle keyboard events
         elif event.type == pygame.KEYDOWN:
 
             if event.key == pygame.K_UP:
@@ -66,77 +67,10 @@ while running:
             world.agent_position = agent.position
 
     # ==============================
-    # Background
+    # Render World
     # ==============================
 
-    screen.fill("white")
-
-    # ==============================
-    # Draw grid
-    # ==============================
-
-    for row in range(world.size):
-
-        for col in range(world.size):
-
-            x = col * CELL_SIZE
-            y = row * CELL_SIZE
-
-            position = (row, col)
-
-            # Draw cell
-            pygame.draw.rect(
-                screen,
-                "white",
-                (x, y, CELL_SIZE, CELL_SIZE)
-            )
-
-            # Draw border
-            pygame.draw.rect(
-                screen,
-                "black",
-                (x, y, CELL_SIZE, CELL_SIZE),
-                2
-            )
-
-            # ==============================
-            # Check object
-            # ==============================
-
-            symbol = None
-
-            if position in world.pits:
-                symbol = "P"
-
-            elif position == world.wumpus:
-                symbol = "W"
-
-            elif position == world.gold:
-                symbol = "G"
-
-            elif position == world.agent_position:
-                symbol = "A"
-
-            # ==============================
-            # Draw object
-            # ==============================
-
-            if symbol is not None:
-
-                text = font.render(
-                    symbol,
-                    True,
-                    "black"
-                )
-
-                text_rect = text.get_rect(
-                    center=(
-                        x + CELL_SIZE // 2,
-                        y + CELL_SIZE // 2
-                    )
-                )
-
-                screen.blit(text, text_rect)
+    renderer.draw_world(world)
 
     # ==============================
     # Update screen
