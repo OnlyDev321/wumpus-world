@@ -31,7 +31,6 @@ class Agent:
         }
 
         # Path queue & thoughts
-        self.planned_path = []
         self.last_action = "INITIALIZED"
         self.thought_process = "Agent initialized at safe start position."
 
