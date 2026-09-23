@@ -31,6 +31,9 @@ class SoundManager:
             "stench": ("stench.wav", 0.7),
             "glitter": ("glitter.wav", 0.8),
             "scream": ("scream.wav", 1.0),
+            "door": ("door.wav", 0.9),
+            "pit": ("pit.wav", 0.9),
+            "wumpus": ("wumpus.wav", 0.95),
         }
 
         for key, (filename, volume) in sound_configs.items():

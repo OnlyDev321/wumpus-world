@@ -103,6 +103,8 @@ class GameManager:
                 self.death_reason = "FALL_IN_PIT"
                 self.score -= 1000
                 self.add_log("💀 Agent fell into a Pit! GAME OVER.")
+                if self.sound_manager:
+                    self.sound_manager.play("pit")
                 return
 
             if self.agent.position == self.world.wumpus and self.world.is_wumpus_alive:
@@ -111,6 +113,8 @@ class GameManager:
                 self.death_reason = "EATEN_BY_WUMPUS"
                 self.score -= 1000
                 self.add_log("👹 Devoured by the Wumpus! GAME OVER.")
+                if self.sound_manager:
+                    self.sound_manager.play("wumpus")
                 return
 
             # Percepts at new cell
@@ -148,6 +152,8 @@ class GameManager:
                     self.add_log("🏆 VICTORY! Agent climbed out with Gold!")
                 else:
                     self.add_log("Climbed out safely without gold.")
+                if self.sound_manager:
+                    self.sound_manager.play("door")
 
     def manual_move(self, dr, dc):
         """Allows manual player control."""
@@ -169,12 +175,18 @@ class GameManager:
                 self.death_reason = "FALL_IN_PIT"
                 self.score -= 1000
                 self.add_log("💀 Fell into a Pit! Game Over.")
+                if self.sound_manager:
+                    self.sound_manager.play("pit")
+                return
             elif self.agent.position == self.world.wumpus and self.world.is_wumpus_alive:
                 self.game_over = True
                 self.agent.is_alive = False
                 self.death_reason = "EATEN_BY_WUMPUS"
                 self.score -= 1000
                 self.add_log("👹 Encountered Wumpus! Game Over.")
+                if self.sound_manager:
+                    self.sound_manager.play("wumpus")
+                return
 
             percepts = self.world.get_percepts(self.agent.position)
             self.agent.perceive(percepts)
@@ -222,6 +234,8 @@ class GameManager:
                 self.add_log("🏆 VICTORY! Player climbed out with Gold!")
             else:
                 self.add_log("Player climbed out safely without gold.")
+            if self.sound_manager:
+                self.sound_manager.play("door")
         else:
             self.add_log("Cannot climb out! You must return to the entrance (3, 0).")
 
