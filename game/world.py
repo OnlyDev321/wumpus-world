@@ -16,10 +16,24 @@ class World:
         self.gold_taken = False
         self.last_action_screamed = False
 
+        self.initial_pits = set()
+        self.initial_wumpus = None
+        self.initial_gold = None
+
         if randomize:
             self.generate_random_world()
         else:
             self.generate_default_world()
+
+    def reset_world(self):
+        """Restores the current world map to its initial layout."""
+        self.agent_position = self.start_position
+        self.pits = set(self.initial_pits)
+        self.wumpus = self.initial_wumpus
+        self.gold = self.initial_gold
+        self.is_wumpus_alive = True
+        self.gold_taken = False
+        self.last_action_screamed = False
 
     def generate_default_world(self):
         """Standard default map for logic inference verification."""
@@ -27,6 +41,9 @@ class World:
         self.pits = {(0, 2), (2, 2), (3, 3)}  # Default pits
         self.wumpus = (1, 1)                  # Wumpus at (1, 1)
         self.gold = (1, 2)                    # Gold at (1, 2)
+        self.initial_pits = set(self.pits)
+        self.initial_wumpus = self.wumpus
+        self.initial_gold = self.gold
         self.is_wumpus_alive = True
         self.gold_taken = False
         self.last_action_screamed = False
@@ -55,6 +72,9 @@ class World:
                 if random.random() < pit_prob:
                     self.pits.add(cell)
 
+        self.initial_pits = set(self.pits)
+        self.initial_wumpus = self.wumpus
+        self.initial_gold = self.gold
         self.is_wumpus_alive = True
         self.gold_taken = False
         self.last_action_screamed = False

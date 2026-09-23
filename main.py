@@ -47,10 +47,13 @@ def main():
 
                 # 2. Session Management
                 elif event.key == pygame.K_r:
-                    game_manager.reset(randomize=False)
+                    game_manager.reset(mode="replay")
 
                 elif event.key == pygame.K_m:
-                    game_manager.reset(randomize=True)
+                    game_manager.reset(mode="random")
+
+                elif event.key == pygame.K_d:
+                    game_manager.reset(mode="default")
 
                 elif event.key == pygame.K_TAB:
                     renderer.reveal_all = not renderer.reveal_all

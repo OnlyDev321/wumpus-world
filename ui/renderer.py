@@ -417,7 +417,7 @@ class Renderer:
         pygame.draw.rect(self.screen, self.COLOR_PANEL_BORDER, hotkey_box, 1, border_radius=6)
 
         hk1 = self.font_small.render("[SPACE] Step  |  [A] Auto  |  [TAB] Fog", True, self.COLOR_CYAN)
-        hk2 = self.font_small.render("[G] Grab  |  [C] Climb  |  [R] Reset  |  [M] Random", True, self.COLOR_TEXT_MUTED)
+        hk2 = self.font_small.render("[G] Grab  |  [C] Climb  |  [R] Replay  |  [M] Random  |  [D] Default", True, self.COLOR_TEXT_MUTED)
         self.screen.blit(hk1, (hud_x + 24, footer_y + 6))
         self.screen.blit(hk2, (hud_x + 24, footer_y + 22))
 
@@ -463,7 +463,7 @@ class Renderer:
             reason = "Fell into an abyss Pit!" if game_manager.death_reason == "FALL_IN_PIT" else "Devoured by the Wumpus!"
             t2 = self.font_normal.render(f"{reason} Final Score: {game_manager.score}", True, self.COLOR_TEXT_MAIN)
 
-        t3 = self.font_small.render("Press [R] to Play Again  |  [M] for New Map", True, self.COLOR_CYAN)
+        t3 = self.font_small.render("Press [R] Replay  |  [M] New Map  |  [D] Default Map", True, self.COLOR_CYAN)
 
         self.screen.blit(t1, (bx + (banner_w - t1.get_width()) // 2, by + 22))
         self.screen.blit(t2, (bx + (banner_w - t2.get_width()) // 2, by + 58))

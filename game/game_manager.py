@@ -36,12 +36,24 @@ class GameManager:
         p_str = ", ".join(percepts) if percepts else "Clear"
         self.add_log(f"Spawned at {self.agent.position}: [{p_str}]")
 
-    def reset(self, randomize=False):
-        """Resets the game state."""
-        if randomize:
+    def reset(self, mode="replay"):
+        """
+        Resets the game state.
+
+        Modes:
+        - "replay": restores current map to its initial layout (same pits, wumpus, gold)
+        - "random": generates a new randomized map
+        - "default": loads the standard default map
+        """
+        if mode == "random" or mode is True:
             self.world.generate_random_world()
-        else:
+            log_msg = "New random map generated."
+        elif mode == "default":
             self.world.generate_default_world()
+            log_msg = "Default map loaded."
+        else:
+            self.world.reset_world()
+            log_msg = "Current map replayed."
 
         self.agent.reset(self.world.start_position)
         self.score = 0
@@ -49,9 +61,10 @@ class GameManager:
         self.game_over = False
         self.victory = False
         self.death_reason = None
+        self.auto_mode = False
         self.logs.clear()
         self.initial_perceive()
-        self.add_log("Game reset successfully.")
+        self.add_log(log_msg)
 
     def step_ai(self):
         """Executes a single decision step by the AI Agent."""

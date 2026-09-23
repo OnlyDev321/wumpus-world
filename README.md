@@ -149,8 +149,9 @@ Pygame 기반으로 제작된 인터페이스는 직관적인 정보 전달과 �
 |                  <kbd>SPACE</kbd>                   | **AI 1단계 실행**                 | AI Agent가 다음 1단계를 추론하고 행동합니다.                        |
 |                    <kbd>A</kbd>                     | **자동 실행 모드 (Auto Mode)**    | 400ms 딜레이 간격으로 AI가 스스로 연속 탐색합니다.                  |
 |                   <kbd>TAB</kbd>                    | **안개 제거 / 복원 (Fog Toggle)** | Fog of War를 토글하여 전체 맵의 실제 정답 상태를 확인합니다.        |
-|                    <kbd>R</kbd>                     | **기본 맵 리셋**                  | 논리 추론 검증을 위한 표준 기본 맵으로 초기화합니다.                |
-|                    <kbd>M</kbd>                     | **랜덤 맵 생성**                  | 함정, 괴물, 금괴 위치가 랜덤하게 배치된 신규 맵을 생성합니다.       |
+|                    <kbd>R</kbd>                     | **현재 맵 재시작 (Replay Map)**   | 동일한 맵 배치(Pits, Wumpus, Gold) 그대로 처음부터 다시 플레이합니다. |
+|                    <kbd>M</kbd>                     | **랜덤 맵 생성 (New Random Map)** | 함정, 괴물, 금괴 위치가 랜덤하게 배치된 신규 맵을 생성합니다.       |
+|                    <kbd>D</kbd>                     | **기본 맵 로드 (Default Map)**    | 논리 추론 검증을 위한 표준 기본 맵으로 변경합니다.                |
 | <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | **수동 조작 (Manual Move)**       | 사용자가 직접 상하좌우로 이동하여 AI와 플레이를 비교할 수 있습니다. |
 | <kbd>Shift</kbd> + <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | **수동 활 쏘기 (Manual Shoot)** | 해당 방향으로 화살을 발사하여 Wumpus를 공격합니다. (1회 제한) |
 |                    <kbd>G</kbd>                     | **수동 줍기 (Manual Grab)**       | 현재 위치한 칸의 Gold를 수동으로 획득합니다.                        |
