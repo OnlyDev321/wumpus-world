@@ -4,9 +4,12 @@ from game.world import World
 from game.agent import Agent
 from game.game_manager import GameManager
 from ui.renderer import Renderer
+from ui.sound_manager import SoundManager
 
 
 def main():
+    # Pre-initialize mixer for ultra-low latency audio response
+    pygame.mixer.pre_init(44100, -16, 2, 512)
     pygame.init()
 
     # Standard window dimensions for 4x4 board and right-side HUD panel
@@ -18,10 +21,11 @@ def main():
     pygame.display.set_caption("Agentic AI - Wumpus World")
     clock = pygame.time.Clock()
 
-    # Initialize core components
+    # Initialize sound manager and core components
+    sound_manager = SoundManager()
     world = World(size=4, randomize=False)
     agent = Agent(start_pos=world.start_position, size=world.size)
-    game_manager = GameManager(world, agent)
+    game_manager = GameManager(world, agent, sound_manager=sound_manager)
     renderer = Renderer(screen, cell_size=CELL_SIZE, board_offset=(20, 20))
 
     last_auto_step_time = 0

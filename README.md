@@ -17,12 +17,13 @@ wumpus-world/
 │   ├── rules.py             # 📜 명제 논리 추론 엔진 (Knowledge Base & Risk Evaluation)
 │   ├── world.py             # 🗺️ 4x4 던전 환경, 위험 요소(Pit/Wumpus), 지각 신호 생성
 │   └── game_manager.py      # ⚙️ 게임 흐름 동기화, 점수 계산 및 게임 모드 제어
-├── ui/                      # 🖥️ 그래픽 렌더링
-│   └── renderer.py          # 🎨 Pygame 기반 2D 그래픽, Fog of War, 실시간 AI Mind HUD
-└── assets/                  # 🖼️ 고화질 2D 스프라이트 에셋
-    ├── hero.png, door.png, floor.png
-    ├── wumpus.png, pit.png, gold.png, giltter.png
-    └── breeze.png, stench.png, scream.png, arrow.png
+├── ui/                      # 🖥️ UI & 오디오 렌더링
+│   ├── renderer.py          # 🎨 Pygame 기반 2D 그래픽, Fog of War, 실시간 AI Mind HUD
+│   └── sound_manager.py     # 🔊 저지연 오디오 시스템 (Breeze, Stench, Glitter, Scream)
+└── assets/                  # 🖼️ 고화질 2D 스프라이트 및 사운드 에셋
+    ├── hero.png, door.png, floor.png, wumpus.png, pit.png, gold.png...
+    └── sounds/              # 🎵 16-bit PCM WAV 사운드 이펙트
+        ├── breeze.wav, stench.wav, glitter.wav, scream.wav
 ```
 
 | 모듈 / 파일            | 역할                                                                                              |
@@ -33,7 +34,8 @@ wumpus-world/
 | `game/rules.py`        | 📜 명제 논리 기반 지식 추론(`safe_cells`, `confirmed_pits`, `confirmed_wumpus`), 위험도 점수 산출 |
 | `game/game_manager.py` | ⚙️ World와 Agent 간 상호작용 동기화, 점수(Score) 계산, 자동/수동 모드 관리                        |
 | `ui/renderer.py`       | 🖥️ 전장 그리드, 시야 안개(Fog of War), AI 사고 과정(Thought Process) 및 HUD 실시간 렌더링         |
-| `assets/`              | 🎨 던전 타일, 캐릭터, 몬스터, 함정, 지각 신호(아이콘) 스프라이트 리소스                           |
+| `ui/sound_manager.py`  | 🔊 환경 지각 신호(Breeze/Stench/Glitter) 및 피격 비명(Scream) 저지연 오디오 재생 엔진               |
+| `assets/`              | 🎨 던전 타일, 캐릭터, 몬스터, 지각 신호 스프라이트 및 효과음(.wav) 리소스                           |
 
 ---
 

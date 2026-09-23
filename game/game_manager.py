@@ -6,9 +6,10 @@ class GameManager:
     - Tracks score, steps, and Victory / Game Over states
     """
 
-    def __init__(self, world, agent):
+    def __init__(self, world, agent, sound_manager=None):
         self.world = world
         self.agent = agent
+        self.sound_manager = sound_manager
         self.score = 0
         self.steps = 0
         self.game_over = False
@@ -35,6 +36,8 @@ class GameManager:
         self.agent.reason(self.world.is_wumpus_alive)
         p_str = ", ".join(percepts) if percepts else "Clear"
         self.add_log(f"Spawned at {self.agent.position}: [{p_str}]")
+        if self.sound_manager:
+            self.sound_manager.play_percepts(percepts)
 
     def reset(self, mode="replay"):
         """
@@ -62,6 +65,8 @@ class GameManager:
         self.victory = False
         self.death_reason = None
         self.auto_mode = False
+        if self.sound_manager:
+            self.sound_manager.stop_all()
         self.logs.clear()
         self.initial_perceive()
         self.add_log(log_msg)
@@ -112,6 +117,8 @@ class GameManager:
             new_percepts = self.world.get_percepts(self.agent.position)
             self.agent.perceive(new_percepts)
             self.agent.reason(self.world.is_wumpus_alive)
+            if self.sound_manager:
+                self.sound_manager.play_percepts(new_percepts)
 
         elif action_type == "GRAB":
             if self.agent.position == self.world.gold and not self.world.gold_taken:
@@ -127,6 +134,8 @@ class GameManager:
             hit = self.world.shoot_arrow(self.agent.position, direction)
             if hit:
                 self.add_log(f"🏹 Shot {direction}: WUMPUS SLAIN! Horrific scream heard!")
+                if self.sound_manager:
+                    self.sound_manager.play("scream")
             else:
                 self.add_log(f"🏹 Shot {direction}: Arrow missed.")
             self.agent.reason(self.world.is_wumpus_alive)
@@ -170,6 +179,8 @@ class GameManager:
             percepts = self.world.get_percepts(self.agent.position)
             self.agent.perceive(percepts)
             self.agent.reason(self.world.is_wumpus_alive)
+            if self.sound_manager:
+                self.sound_manager.play_percepts(percepts)
 
     def manual_grab(self):
         """Player manual grab action."""
@@ -194,6 +205,8 @@ class GameManager:
         hit = self.world.shoot_arrow(self.agent.position, direction)
         if hit:
             self.add_log(f"🏹 Manual Shot {direction}: WUMPUS SLAIN! Horrific scream heard!")
+            if self.sound_manager:
+                self.sound_manager.play("scream")
         else:
             self.add_log(f"🏹 Manual Shot {direction}: Arrow missed.")
         self.agent.reason(self.world.is_wumpus_alive)
