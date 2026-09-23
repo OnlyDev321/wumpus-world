@@ -34,6 +34,7 @@ class SoundManager:
             "door": ("door.wav", 0.9),
             "pit": ("pit.wav", 0.9),
             "wumpus": ("wumpus.wav", 0.95),
+            "gold": ("gold.wav", 0.85),
         }
 
         for key, (filename, volume) in sound_configs.items():

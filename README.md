@@ -19,11 +19,11 @@ wumpus-world/
 │   └── game_manager.py      # ⚙️ 게임 흐름 동기화, 점수 계산 및 게임 모드 제어
 ├── ui/                      # 🖥️ UI & 오디오 렌더링
 │   ├── renderer.py          # 🎨 Pygame 기반 2D 그래픽, Fog of War, 실시간 AI Mind HUD
-│   └── sound_manager.py     # 🔊 저지연 오디오 시스템 (Breeze, Stench, Glitter, Scream, Door, Pit, Wumpus)
+│   └── sound_manager.py     # 🔊 저지연 오디오 시스템 (Breeze, Stench, Glitter, Scream, Door, Pit, Wumpus, Gold)
 └── assets/                  # 🖼️ 고화질 2D 스프라이트 및 사운드 에셋
     ├── hero.png, door.png, floor.png, wumpus.png, pit.png, gold.png...
     └── sounds/              # 🎵 16-bit PCM WAV 사운드 이펙트
-        ├── breeze.wav, stench.wav, glitter.wav, scream.wav, door.wav, pit.wav, wumpus.wav
+        ├── breeze.wav, stench.wav, glitter.wav, scream.wav, door.wav, pit.wav, wumpus.wav, gold.wav
 ```
 
 | 모듈 / 파일            | 역할                                                                                              |

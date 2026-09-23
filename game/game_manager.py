@@ -130,6 +130,8 @@ class GameManager:
                 self.agent.has_gold = True
                 self.score += 1000
                 self.add_log("✨ Grabbed Gold (+1000 pts)!")
+                if self.sound_manager:
+                    self.sound_manager.play("gold")
 
         elif action_type == "SHOOT":
             direction = action["direction"]
@@ -203,6 +205,8 @@ class GameManager:
             self.agent.has_gold = True
             self.score += 1000
             self.add_log("✨ Player grabbed Gold (+1000)!")
+            if self.sound_manager:
+                self.sound_manager.play("gold")
 
     def manual_shoot(self, direction):
         """Allows manual player shooting in a given direction ('UP', 'DOWN', 'LEFT', 'RIGHT')."""
