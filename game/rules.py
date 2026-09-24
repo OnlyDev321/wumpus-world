@@ -14,12 +14,13 @@ def get_adjacent_cells(pos, size=4):
     return adjacent
 
 
-def deduce_knowledge(size, visited, percepts_history, is_wumpus_alive=True):
+def deduce_knowledge(size, visited, percepts_history, is_wumpus_alive=True, death_memory=None):
     """
-    Deduces knowledge based on observation history:
+    Deduces knowledge based on observation history and cross-episode death memory:
     - visited: set of cells visited by Agent (100% safe)
     - percepts_history: dict {pos: set(percepts)}
     - is_wumpus_alive: bool
+    - death_memory: optional dict containing {"pits": set(), "wumpus": tuple or None}
 
     Returns:
     - safe_cells: set of cells definitively SAFE
@@ -32,6 +33,10 @@ def deduce_knowledge(size, visited, percepts_history, is_wumpus_alive=True):
     """
     all_cells = {(r, c) for r in range(size) for c in range(size)}
 
+    # Extract hazards learned from previous deaths in this world
+    recalled_pits = set(death_memory.get("pits", set())) if death_memory else set()
+    recalled_wumpus = death_memory.get("wumpus") if death_memory else None
+
     # 1. Cells guaranteed to be free of Pits (Pit-Free)
     pit_free = set(visited)
     for pos in visited:
@@ -40,6 +45,9 @@ def deduce_knowledge(size, visited, percepts_history, is_wumpus_alive=True):
         if "breeze" not in percepts:
             for neighbor in get_adjacent_cells(pos, size):
                 pit_free.add(neighbor)
+
+    # Any recalled fatal pit must never be considered pit_free
+    pit_free -= recalled_pits
 
     # 2. Cells guaranteed to be free of Wumpus (Wumpus-Free)
     wumpus_free = set(visited)
@@ -59,30 +67,37 @@ def deduce_knowledge(size, visited, percepts_history, is_wumpus_alive=True):
     possible_wumpus = set()
 
     if is_wumpus_alive:
-        stench_positions = [pos for pos in visited if "stench" in percepts_history.get(pos, set())]
-        if stench_positions:
-            # Wumpus must be located in the intersection of candidate cells for all Stench positions
-            candidate_sets = []
-            for sp in stench_positions:
-                candidates = set(get_adjacent_cells(sp, size)) - wumpus_free
-                candidate_sets.append(candidates)
-
-            if candidate_sets:
-                intersection = set.intersection(*candidate_sets)
-                possible_wumpus = intersection
-
-                if len(intersection) == 1:
-                    confirmed_wumpus = next(iter(intersection))
-                    # Since there is only 1 Wumpus, all other cells are wumpus_free
-                    wumpus_free = all_cells - {confirmed_wumpus}
-                    possible_wumpus = {confirmed_wumpus}
+        if recalled_wumpus:
+            # Learned from previous death by Wumpus
+            confirmed_wumpus = recalled_wumpus
+            wumpus_free = all_cells - {recalled_wumpus}
+            possible_wumpus = {recalled_wumpus}
         else:
-            # No Stench encountered yet: any cell not ruled out can potentially hold the Wumpus
-            possible_wumpus = all_cells - wumpus_free
+            stench_positions = [pos for pos in visited if "stench" in percepts_history.get(pos, set())]
+            if stench_positions:
+                # Wumpus must be located in the intersection of candidate cells for all Stench positions
+                candidate_sets = []
+                for sp in stench_positions:
+                    candidates = set(get_adjacent_cells(sp, size)) - wumpus_free
+                    candidate_sets.append(candidates)
+
+                if candidate_sets:
+                    intersection = set.intersection(*candidate_sets)
+                    possible_wumpus = intersection
+
+                    if len(intersection) == 1:
+                        confirmed_wumpus = next(iter(intersection))
+                        # Since there is only 1 Wumpus, all other cells are wumpus_free
+                        wumpus_free = all_cells - {confirmed_wumpus}
+                        possible_wumpus = {confirmed_wumpus}
+            else:
+                # No Stench encountered yet: any cell not ruled out can potentially hold the Wumpus
+                possible_wumpus = all_cells - wumpus_free
 
     # 4. Deduce Pit locations (Multiple Pits can exist)
-    confirmed_pits = set()
-    possible_pits = set()
+    # Start with confirmed pits from episodic death memory
+    confirmed_pits = set(recalled_pits)
+    possible_pits = set(recalled_pits)
     breeze_positions = [pos for pos in visited if "breeze" in percepts_history.get(pos, set())]
 
     for bp in breeze_positions:
@@ -93,8 +108,8 @@ def deduce_knowledge(size, visited, percepts_history, is_wumpus_alive=True):
         possible_pits.update(candidates)
 
     # 5. Determine definitively SAFE cells
-    # Safe cell = Pit-Free AND Wumpus-Free
-    safe_cells = pit_free.intersection(wumpus_free)
+    # Safe cell = Pit-Free AND Wumpus-Free (recalled fatal pits are strictly excluded)
+    safe_cells = pit_free.intersection(wumpus_free) - confirmed_pits
 
     return {
         "safe_cells": safe_cells,

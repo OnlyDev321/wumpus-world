@@ -6,9 +6,10 @@ class Agent:
     """
     AI Agent implementing the complete loop:
     Perception -> Memory -> Reasoning -> Decision Making -> Action.
+    Enhanced with Episodic Memory to retain fatal failure causes across replays.
     """
 
-    def __init__(self, start_pos=(3, 0), size=4):
+    def __init__(self, start_pos=(3, 0), size=4, death_memory=None):
         self.size = size
         self.start_pos = start_pos
         self.position = start_pos
@@ -17,26 +18,68 @@ class Agent:
         self.is_alive = True
         self.escaped = False
 
-        # Memory
+        # Cross-episode memory (persists across map replays)
+        self.death_memory = (
+            {"pits": set(death_memory.get("pits", set())), "wumpus": death_memory.get("wumpus")}
+            if death_memory is not None
+            else {"pits": set(), "wumpus": None}
+        )
+
+        # In-episode memory
         self.visited = set()
         self.percepts_history = {}
         self.knowledge = {
-            "safe_cells": {start_pos},
-            "confirmed_pits": set(),
-            "confirmed_wumpus": None,
-            "possible_pits": set(),
-            "possible_wumpus": set(),
-            "pit_free": {start_pos},
-            "wumpus_free": {start_pos},
+            "safe_cells": {start_pos} - self.death_memory["pits"],
+            "confirmed_pits": set(self.death_memory["pits"]),
+            "confirmed_wumpus": self.death_memory["wumpus"],
+            "possible_pits": set(self.death_memory["pits"]),
+            "possible_wumpus": {self.death_memory["wumpus"]} if self.death_memory["wumpus"] else set(),
+            "pit_free": {start_pos} - self.death_memory["pits"],
+            "wumpus_free": {start_pos} if self.death_memory["wumpus"] != start_pos else set(),
         }
 
         # Path queue & thoughts
         self.last_action = "INITIALIZED"
-        self.thought_process = "Agent initialized at safe start position."
+        if self.has_death_memory():
+            summary = self.get_memory_summary()
+            self.thought_process = f"🧠 Replay initialized with episodic memory ({summary})."
+        else:
+            self.thought_process = "Agent initialized at safe start position."
 
-    def reset(self, start_pos=(3, 0)):
-        """Resets Agent state."""
-        self.__init__(start_pos, self.size)
+    def reset(self, start_pos=(3, 0), keep_memory=False):
+        """
+        Resets Agent state for a new round.
+        If keep_memory is True, retains death_memory learned from previous failures on this map.
+        """
+        retained_mem = self.death_memory if keep_memory else None
+        self.__init__(start_pos, self.size, death_memory=retained_mem)
+
+    def record_death(self, reason, fatal_cell):
+        """
+        Registers fatal outcome into episodic memory so the agent avoids repeating it upon replay.
+        """
+        if reason == "FALL_IN_PIT":
+            self.death_memory["pits"].add(fatal_cell)
+        elif reason == "EATEN_BY_WUMPUS":
+            self.death_memory["wumpus"] = fatal_cell
+
+    def clear_death_memory(self):
+        """Wipes cross-episode memory when switching to a completely new map."""
+        self.death_memory = {"pits": set(), "wumpus": None}
+
+    def has_death_memory(self):
+        """Returns True if agent has learned any fatal hazards from previous runs."""
+        return bool(self.death_memory["pits"] or self.death_memory["wumpus"] is not None)
+
+    def get_memory_summary(self):
+        """Returns human-readable summary of recalled hazards."""
+        items = []
+        if self.death_memory["pits"]:
+            pits_str = ", ".join(str(p) for p in sorted(list(self.death_memory["pits"])))
+            items.append(f"Pit(s) at {pits_str}")
+        if self.death_memory["wumpus"]:
+            items.append(f"Wumpus at {self.death_memory['wumpus']}")
+        return "; ".join(items) if items else "No fatal history"
 
     def perceive(self, current_percepts):
         """
@@ -49,10 +92,14 @@ class Agent:
     def reason(self, is_wumpus_alive=True):
         """
         REASONING Stage:
-        Applies logic rules to update the Knowledge Base.
+        Applies logic rules and cross-episode death memory to update the Knowledge Base.
         """
         self.knowledge = deduce_knowledge(
-            self.size, self.visited, self.percepts_history, is_wumpus_alive
+            self.size,
+            self.visited,
+            self.percepts_history,
+            is_wumpus_alive,
+            death_memory=self.death_memory,
         )
 
     def find_shortest_path(self, target_cells, allowed_cells):
@@ -160,8 +207,21 @@ class Agent:
             # Pick neighbor with lowest risk
             candidates.sort(key=lambda x: x[0])
             lowest_risk, chosen_cell = candidates[0]
+
+            # Detect if episodic memory successfully diverted agent away from a fatal hazard
+            avoided_hazards = [
+                nb for nb in get_adjacent_cells(self.position, self.size)
+                if nb in self.death_memory["pits"] or nb == self.death_memory["wumpus"]
+            ]
+            avoidance_note = ""
+            if avoided_hazards:
+                avoidance_note = f" 🧠 [Memory] Avoided fatal cell(s) {avoided_hazards}!"
+
             self.last_action = f"RISKY_MOVE_{chosen_cell}"
-            self.thought_process = f"⚠️ No safe cells left. Taking calculated risk into {chosen_cell} (Risk: {lowest_risk})."
+            self.thought_process = (
+                f"⚠️ No safe cells left. Taking calculated risk into {chosen_cell} "
+                f"(Risk: {lowest_risk}).{avoidance_note}"
+            )
             return {"type": "MOVE", "to": chosen_cell}
 
         # 6. Deadlock or too perilous -> Retreat safely

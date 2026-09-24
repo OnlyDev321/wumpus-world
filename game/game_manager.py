@@ -44,21 +44,29 @@ class GameManager:
         Resets the game state.
 
         Modes:
-        - "replay": restores current map to its initial layout (same pits, wumpus, gold)
-        - "random": generates a new randomized map
-        - "default": loads the standard default map
+        - "replay": restores current map to its initial layout while preserving episodic death memory
+        - "random": generates a new randomized map and wipes memory
+        - "default": loads the standard default map and wipes memory
         """
         if mode == "random" or mode is True:
             self.world.generate_random_world()
-            log_msg = "New random map generated."
+            self.agent.clear_death_memory()
+            self.agent.reset(self.world.start_position, keep_memory=False)
+            log_msg = "New random map generated (Memory wiped)."
         elif mode == "default":
             self.world.generate_default_world()
-            log_msg = "Default map loaded."
+            self.agent.clear_death_memory()
+            self.agent.reset(self.world.start_position, keep_memory=False)
+            log_msg = "Default map loaded (Memory wiped)."
         else:
             self.world.reset_world()
-            log_msg = "Current map replayed."
+            had_memory = self.agent.has_death_memory()
+            self.agent.reset(self.world.start_position, keep_memory=True)
+            if had_memory:
+                log_msg = f"Replaying map (🧠 Recalled: {self.agent.get_memory_summary()})."
+            else:
+                log_msg = "Current map replayed."
 
-        self.agent.reset(self.world.start_position)
         self.score = 0
         self.steps = 0
         self.game_over = False
@@ -102,7 +110,8 @@ class GameManager:
                 self.agent.is_alive = False
                 self.death_reason = "FALL_IN_PIT"
                 self.score -= 1000
-                self.add_log("💀 Agent fell into a Pit! GAME OVER.")
+                self.agent.record_death("FALL_IN_PIT", self.agent.position)
+                self.add_log(f"💀 Fell into Pit at {self.agent.position}! Memorized for replay.")
                 if self.sound_manager:
                     self.sound_manager.play("pit")
                 return
@@ -112,7 +121,8 @@ class GameManager:
                 self.agent.is_alive = False
                 self.death_reason = "EATEN_BY_WUMPUS"
                 self.score -= 1000
-                self.add_log("👹 Devoured by the Wumpus! GAME OVER.")
+                self.agent.record_death("EATEN_BY_WUMPUS", self.agent.position)
+                self.add_log(f"👹 Eaten by Wumpus at {self.agent.position}! Memorized for replay.")
                 if self.sound_manager:
                     self.sound_manager.play("wumpus")
                 return
@@ -176,7 +186,8 @@ class GameManager:
                 self.agent.is_alive = False
                 self.death_reason = "FALL_IN_PIT"
                 self.score -= 1000
-                self.add_log("💀 Fell into a Pit! Game Over.")
+                self.agent.record_death("FALL_IN_PIT", self.agent.position)
+                self.add_log(f"💀 Fell into Pit at {self.agent.position}! Memorized for replay.")
                 if self.sound_manager:
                     self.sound_manager.play("pit")
                 return
@@ -185,7 +196,8 @@ class GameManager:
                 self.agent.is_alive = False
                 self.death_reason = "EATEN_BY_WUMPUS"
                 self.score -= 1000
-                self.add_log("👹 Encountered Wumpus! Game Over.")
+                self.agent.record_death("EATEN_BY_WUMPUS", self.agent.position)
+                self.add_log(f"👹 Encountered Wumpus at {self.agent.position}! Memorized for replay.")
                 if self.sound_manager:
                     self.sound_manager.play("wumpus")
                 return

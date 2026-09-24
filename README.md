@@ -30,9 +30,9 @@ wumpus-world/
 | :--------------------- | :------------------------------------------------------------------------------------------------ |
 | `main.py`              | 🚀 Pygame 초기화, 윈도우 생성, 키보드 이벤트 분기 및 메인 루프 실행                               |
 | `game/world.py`        | 🗺️ 4×4 맵 생성(기본 맵/랜덤 맵), Pit/Wumpus/Gold 배치, 화살 궤적 계산 및 Percept 발생             |
-| `game/agent.py`        | 🤖 AI Agent 상태 관리, 메모리 기록, 최적 행동 결정, BFS 최단 경로 탐색                            |
-| `game/rules.py`        | 📜 명제 논리 기반 지식 추론(`safe_cells`, `confirmed_pits`, `confirmed_wumpus`), 위험도 점수 산출 |
-| `game/game_manager.py` | ⚙️ World와 Agent 간 상호작용 동기화, 점수(Score) 계산, 자동/수동 모드 관리                        |
+| `game/agent.py`        | 🤖 AI Agent 상태 관리, 인지-추론-행동 루프, 에피소드 사망 기억(Episodic Memory), BFS 최단 경로 탐색 |
+| `game/rules.py`        | 📜 명제 논리 기반 지식 추론, 과거 실패 기억 통합(`death_memory`), 위험도 점수(`Risk Score`) 산출   |
+| `game/game_manager.py` | ⚙️ World와 Agent 상호작용 동기화, 사망 원인 기록(`record_death`), Replay 메모리 보존 제어          |
 | `ui/renderer.py`       | 🖥️ 전장 그리드, 시야 안개(Fog of War), AI 사고 과정(Thought Process) 및 HUD 실시간 렌더링         |
 | `ui/sound_manager.py`  | 🔊 지각 신호(Breeze/Stench/Glitter), 탈출(Door), 사망(Pit/Wumpus), 비명(Scream) 저지연 오디오 재생 엔진 |
 | `assets/`              | 🎨 던전 타일, 캐릭터, 몬스터, 지각 신호 스프라이트 및 효과음(.wav) 리소스                           |
@@ -126,8 +126,30 @@ Agent는 불확실한 부분 관측 환경(POMDP)에서 다음과 같은 **5단�
 2. **귀환 및 탈출 (`CLIMB`)**: Gold 소지 시, 기방문 안전 경로(BFS)를 통해 출발점 `(3, 0)`으로 복귀 후 동굴 탈출.
 3. **안전 구역 탐색 (`EXPLORE_SAFE`)**: 확정된 안전 미방문 셀 중 가장 가까운 목표로 안전 경로(BFS) 탐색 후 이동.
 4. **Wumpus 조준 사격 (`SHOOT`)**: Wumpus의 위치가 확정되고 화살이 남아있다면, 사선(가로/세로 일직선)에 위치한 안전 칸으로 재배치 후 화살 발사.
-5. **계산된 위험 감수 (`CALCULATED_RISK`)**: 100% 안전한 미탐색 칸이 없는 경우, 인접 셀의 위험 점수(Risk Score)를 비교하여 위험 확률이 가장 낮은 셀로 이동.
+5. **계산된 위험 감수 (`CALCULATED_RISK`)**: 100% 안전한 미탐색 칸이 없는 경우, 인접 셀의 위험 점수(Risk Score)를 비교하여 위험 확률이 가장 낮은 셀로 이동 (과거 사망 칸은 배제).
 6. **안전 후퇴 (`RETREAT`)**: 진입로가 완전히 차단된 경우, 무리하지 않고 출발점으로 안전하게 후퇴하여 생존.
+
+### 3. 🧠 에피소드 사망 기억 및 적응 학습 (Episodic Memory & Failure Learning)
+
+동일 맵을 다시 플레이할 때 Agent가 같은 실수를 반복하지 않도록 **Cross-Episode Death Memory** 메커니즘을 지원합니다.
+
+```mermaid
+graph LR
+    Death[사망 발생: Pit / Wumpus] --> Record[record_death: 사망 좌표 & 원인 저장]
+    Record --> Replay[Replay 'R' 실행: 지식 베이스에 사망 기억 유지]
+    Replay --> Avoid[위험 평가 단계: 해당 칸 Risk = Max 처리 및 우회]
+    Avoid --> NewPath[새로운 대체 경로 탐색 및 생존율 향상]
+```
+
+- **사망 원인 학습 (`record_death`)**:
+  - **Pit 추락 (`FALL_IN_PIT`)**: 사망한 좌표 `(r, c)`를 `confirmed_pits`로 즉시 각인.
+  - **Wumpus 피격 (`EATEN_BY_WUMPUS`)**: 사망한 좌표 `(r, c)`를 `confirmed_wumpus`로 각인하여 다음 판에서 원거리 저격 기회를 모색.
+- **Replay 적응 (`[R]`)**:
+  - Replay 시 지각/이동 기록은 초기화되지만, 해당 맵에서 학습한 `death_memory`는 유지됩니다.
+  - 100% 안전한 셀이 없어 위험을 감수해야 할 때, **이전에 죽었던 셀을 우선순위에서 완전히 제외**하고 다른 대체 분기 경로로 우회합니다.
+- **메모리 수명 주기 (Lifecycle)**:
+  - `[R] Replay`: 현재 맵의 사망 기억 유지 (반복 학습).
+  - `[M] Random Map` / `[D] Default Map`: 다른 세계로 이동하므로 사망 기억 완전 초기화 (`clear_death_memory`).
 
 ---
 
@@ -135,8 +157,8 @@ Agent는 불확실한 부분 관측 환경(POMDP)에서 다음과 같은 **5단�
 
 Pygame 기반으로 제작된 인터페이스는 직관적인 정보 전달과 몰입감을 제공합니다.
 
-- **동적 안개 시스템 (Fog of War)**: 미탐색 셀은 어두운 안개로 가려지며, Agent가 안전하다고 추론한 셀은 **녹색 테두리와 `SAFE` 배지**로 실시간 표시됩니다. 확정된 위험 지역은 `PIT!`, `WUMPUS!` 경고 태그가 부착됩니다.
-- **AI 실시간 사고 패널 (Thought Process)**: AI가 현재 왜 이 칸으로 이동하는지, 어떤 논리로 추론했는지 텍스트로 실시간 표시합니다.
+- **동적 안개 시스템 (Fog of War)**: 미탐색 셀은 어두운 안개로 가려지며, Agent가 안전하다고 추론한 셀은 **녹색 테두리와 `SAFE` 배지**로 실시간 표시됩니다. 확정된 위험 지역(사망 기억 포함)은 `PIT!`, `WUMPUS!` 경고 태그가 부착됩니다.
+- **AI 실시간 사고 패널 (Thought Process)**: AI가 현재 왜 이 칸으로 이동하는지, 과거 사망 기억을 어떻게 회피하고 있는지 실시간 텍스트로 표시합니다.
 - **지식 베이스 통계 (Knowledge Dashboard)**:
   - 발견한 안전 구역 수 (`Safe Cells: X/16`), 방문 구역 수 (`Visited: Y/16`)
   - 확정된 함정 수 (`Pits Confirmed: N`), Wumpus 추적 상태 (`Hunting` / `At (r,c)` / `Slain`)
@@ -151,9 +173,9 @@ Pygame 기반으로 제작된 인터페이스는 직관적인 정보 전달과 �
 |                  <kbd>SPACE</kbd>                   | **AI 1단계 실행**                 | AI Agent가 다음 1단계를 추론하고 행동합니다.                        |
 |                    <kbd>A</kbd>                     | **자동 실행 모드 (Auto Mode)**    | 400ms 딜레이 간격으로 AI가 스스로 연속 탐색합니다.                  |
 |                   <kbd>TAB</kbd>                    | **안개 제거 / 복원 (Fog Toggle)** | Fog of War를 토글하여 전체 맵의 실제 정답 상태를 확인합니다.        |
-|                    <kbd>R</kbd>                     | **현재 맵 재시작 (Replay Map)**   | 동일한 맵 배치(Pits, Wumpus, Gold) 그대로 처음부터 다시 플레이합니다. |
-|                    <kbd>M</kbd>                     | **랜덤 맵 생성 (New Random Map)** | 함정, 괴물, 금괴 위치가 랜덤하게 배치된 신규 맵을 생성합니다.       |
-|                    <kbd>D</kbd>                     | **기본 맵 로드 (Default Map)**    | 논리 추론 검증을 위한 표준 기본 맵으로 변경합니다.                |
+|                    <kbd>R</kbd>                     | **현재 맵 재시작 (Replay Map)**   | 동일한 맵 레이아웃을 다시 플레이하며, **사망 기억(Episodic Memory)을 계승**하여 새로운 경로를 개척합니다. |
+|                    <kbd>M</kbd>                     | **랜덤 맵 생성 (New Random Map)** | 신규 맵을 생성하며 기존 사망 기억을 완전히 초기화(Wipe)합니다.       |
+|                    <kbd>D</kbd>                     | **기본 맵 로드 (Default Map)**    | 표준 기본 맵을 로드하며 기존 사망 기억을 완전히 초기화(Wipe)합니다. |
 | <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | **수동 조작 (Manual Move)**       | 사용자가 직접 상하좌우로 이동하여 AI와 플레이를 비교할 수 있습니다. |
 | <kbd>Shift</kbd> + <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | **수동 활 쏘기 (Manual Shoot)** | 해당 방향으로 화살을 발사하여 Wumpus를 공격합니다. (1회 제한) |
 |                    <kbd>G</kbd>                     | **수동 줍기 (Manual Grab)**       | 현재 위치한 칸의 Gold를 수동으로 획득합니다.                        |
