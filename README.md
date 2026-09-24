@@ -43,37 +43,52 @@ wumpus-world/
 
 ```mermaid
 flowchart TD
-    subgraph UI_Audio_Layer["🖥️ UI & Audio Layer"]
-        Renderer["renderer.py<br/>🎨 4x4 Grid Board & Sprites<br/>🌫️ Fog of War Overlay<br/>📊 AI Mind & Live HUD"]
-        SoundMgr["sound_manager.py<br/>🔊 Low-Latency Audio Engine<br/>🎵 Percepts & Event SFX"]
-        Assets[("assets/<br/>Sprites & Audio (.wav)")]
+    %% -------------------------------------------------------------
+    %% TIER 1: ENTRY POINT
+    %% -------------------------------------------------------------
+    subgraph Entry["🚀 Application Entry"]
+        Main["<b>main.py</b><br/>Window Setup & Event Loop"]
+    end
+
+    %% -------------------------------------------------------------
+    %% TIER 2: CONTROL & COORDINATION
+    %% -------------------------------------------------------------
+    subgraph Control["⚙️ Control & Coordination"]
+        GM["<b>game_manager.py</b><br/>Game Manager (State & Rules Synchronization)"]
+    end
+
+    %% -------------------------------------------------------------
+    %% TIER 3: TWO BALANCED SUBSYSTEMS
+    %% -------------------------------------------------------------
+    subgraph Core_Game["🧠 Game & Agent Engine"]
+        direction TB
+        World["<b>world.py</b><br/>Grid World & Percept Generator"]
+        Agent["<b>agent.py</b><br/>AI Agent & Episodic Memory"]
+        Rules["<b>rules.py</b><br/>Propositional Logic Engine"]
+
+        Agent -->|Logical Reasoning| Rules
+    end
+
+    subgraph UI_Audio["🖥️ Presentation & Audio Layer"]
+        direction TB
+        Renderer["<b>renderer.py</b><br/>2D Grid, Fog of War & Live HUD"]
+        SoundMgr["<b>sound_manager.py</b><br/>Low-Latency SFX Audio Engine"]
+        Assets[("<b>assets/</b><br/>Sprites & Audio Files")]
+
         Assets --> Renderer
         Assets --> SoundMgr
     end
 
-    subgraph Entry["🚀 Entry Point"]
-        Main["main.py<br/>Event Loop & Audio Init"]
-    end
+    %% -------------------------------------------------------------
+    %% CLEAN HIERARCHICAL CONNECTIONS (NO CROSSING LINES)
+    %% -------------------------------------------------------------
+    Main -->|Game Loop Step| GM
+    Main -->|Render Frame| Renderer
 
-    subgraph Control_Layer["⚙️ Control Layer"]
-        GM["game_manager.py<br/>🎮 State Sync & Score System<br/>Step / Auto / Manual Mode"]
-    end
-
-    subgraph Core_Game["🧠 Game & Agent Engine"]
-        World["world.py<br/>🗺️ Grid Map & Percept Generator<br/>Pit / Wumpus / Gold / Arrow"]
-        Agent["agent.py<br/>🤖 Agent State & Episodic Memory<br/>Decision Engine & BFS Pathfinding"]
-        Rules["rules.py<br/>📜 Propositional Logic Engine<br/>Knowledge Base & Risk Calculation"]
-    end
-
-    Main --> GM
-    Main --> SoundMgr
-    GM --> World
-    GM --> Agent
-    GM --> SoundMgr
-    Agent --> Rules
-    GM -.-> Renderer
-    World -.-> Renderer
-    Agent -.-> Renderer
+    GM -->|Environment State| World
+    GM -->|Execute Actions| Agent
+    GM -->|Trigger SFX| SoundMgr
+    GM -.->|Pass State to draw| Renderer
 ```
 
 ---
