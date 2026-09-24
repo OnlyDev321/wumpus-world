@@ -43,14 +43,16 @@ wumpus-world/
 
 ```mermaid
 flowchart TD
-    subgraph UI_Layer["🖥️ UI & Presentation"]
+    subgraph UI_Audio_Layer["🖥️ UI & Audio Layer"]
         Renderer["renderer.py<br/>🎨 4x4 Grid Board & Sprites<br/>🌫️ Fog of War Overlay<br/>📊 AI Mind & Live HUD"]
-        Assets[("assets/<br/>Sprites & Icons")]
+        SoundMgr["sound_manager.py<br/>🔊 Low-Latency Audio Engine<br/>🎵 Percepts & Event SFX"]
+        Assets[("assets/<br/>Sprites & Audio (.wav)")]
         Assets --> Renderer
+        Assets --> SoundMgr
     end
 
     subgraph Entry["🚀 Entry Point"]
-        Main["main.py<br/>Event Loop"]
+        Main["main.py<br/>Event Loop & Audio Init"]
     end
 
     subgraph Control_Layer["⚙️ Control Layer"]
@@ -59,13 +61,15 @@ flowchart TD
 
     subgraph Core_Game["🧠 Game & Agent Engine"]
         World["world.py<br/>🗺️ Grid Map & Percept Generator<br/>Pit / Wumpus / Gold / Arrow"]
-        Agent["agent.py<br/>🤖 Agent State & Memory<br/>Decision Engine & BFS Pathfinding"]
+        Agent["agent.py<br/>🤖 Agent State & Episodic Memory<br/>Decision Engine & BFS Pathfinding"]
         Rules["rules.py<br/>📜 Propositional Logic Engine<br/>Knowledge Base & Risk Calculation"]
     end
 
     Main --> GM
+    Main --> SoundMgr
     GM --> World
     GM --> Agent
+    GM --> SoundMgr
     Agent --> Rules
     GM -.-> Renderer
     World -.-> Renderer
