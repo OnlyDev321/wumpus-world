@@ -195,36 +195,60 @@ class Agent:
                     self.thought_process = f"Repositioning to {next_cell} to align shot against Wumpus."
                     return {"type": "MOVE", "to": next_cell}
 
-        # 5. If NO 100% safe cells remain: Risk Evaluation
-        candidates = []
-        for nb in get_adjacent_cells(self.position, self.size):
-            if nb not in self.visited:
-                risk = calculate_cell_risk(nb, self.knowledge)
-                if risk < 10:  # Not a confirmed hazard
-                    candidates.append((risk, nb))
+        # 5. If NO 100% safe cells remain: Global Frontier Risk Evaluation
+        # Instead of giving up when immediate neighbors are hazard-blocked,
+        # scan the entire frontier of visited territory to find the lowest-risk unvisited cell on the board.
+        frontier_candidates = []
+        safe_path_cells = self.knowledge["safe_cells"]
 
-        if candidates:
-            # Pick neighbor with lowest risk
-            candidates.sort(key=lambda x: x[0])
-            lowest_risk, chosen_cell = candidates[0]
+        for v_cell in self.visited:
+            for nb in get_adjacent_cells(v_cell, self.size):
+                if nb not in self.visited:
+                    risk = calculate_cell_risk(nb, self.knowledge)
+                    if risk < 10:  # Exclude confirmed hazards
+                        if v_cell == self.position:
+                            path_to_bridge = []
+                            dist = 1
+                        else:
+                            path_to_bridge = self.find_shortest_path({v_cell}, safe_path_cells)
+                            if path_to_bridge is None:
+                                continue  # No safe route back to that bridge cell
+                            dist = len(path_to_bridge) + 1
 
-            # Detect if episodic memory successfully diverted agent away from a fatal hazard
-            avoided_hazards = [
-                nb for nb in get_adjacent_cells(self.position, self.size)
-                if nb in self.death_memory["pits"] or nb == self.death_memory["wumpus"]
-            ]
-            avoidance_note = ""
-            if avoided_hazards:
-                avoidance_note = f" 🧠 [Memory] Avoided fatal cell(s) {avoided_hazards}!"
+                        frontier_candidates.append((risk, dist, nb, v_cell, path_to_bridge))
 
-            self.last_action = f"RISKY_MOVE_{chosen_cell}"
-            self.thought_process = (
-                f"⚠️ No safe cells left. Taking calculated risk into {chosen_cell} "
-                f"(Risk: {lowest_risk}).{avoidance_note}"
-            )
-            return {"type": "MOVE", "to": chosen_cell}
+        if frontier_candidates:
+            # Prioritize lowest risk first, then closest distance
+            frontier_candidates.sort(key=lambda item: (item[0], item[1]))
+            lowest_risk, dist, chosen_target, bridge_cell, path_to_bridge = frontier_candidates[0]
 
-        # 6. Deadlock or too perilous -> Retreat safely
+            # If adjacent to current position, step directly into the risky frontier cell
+            if bridge_cell == self.position:
+                avoided_hazards = [
+                    nb for nb in get_adjacent_cells(self.position, self.size)
+                    if nb in self.death_memory["pits"] or nb == self.death_memory["wumpus"]
+                ]
+                avoidance_note = ""
+                if avoided_hazards:
+                    avoidance_note = f" 🧠 [Memory] Avoided fatal cell(s) {avoided_hazards}!"
+
+                self.last_action = f"RISKY_MOVE_{chosen_target}"
+                self.thought_process = (
+                    f"⚠️ No safe cells left. Taking calculated risk into {chosen_target} "
+                    f"(Risk: {lowest_risk}).{avoidance_note}"
+                )
+                return {"type": "MOVE", "to": chosen_target}
+            else:
+                # Reposition safely across visited safe cells toward the chosen frontier
+                next_step = path_to_bridge[0]
+                self.last_action = f"NAVIGATE_TO_FRONTIER_{next_step}"
+                self.thought_process = (
+                    f"🧭 Repositioning via {next_step} towards lowest-risk frontier {chosen_target} "
+                    f"(Risk: {lowest_risk}, {dist} steps away)."
+                )
+                return {"type": "MOVE", "to": next_step}
+
+        # 6. Absolute Deadlock: all board frontiers are confirmed hazards -> Retreat safely
         if self.position == self.start_pos:
             self.last_action = "CLIMB_OUT"
             self.thought_process = "🛑 Environment is too dangerous. Retreating safely without gold."

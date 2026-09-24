@@ -452,16 +452,24 @@ class Renderer:
         banner_surf.fill((11, 15, 25, 245))
         self.screen.blit(banner_surf, (bx, by))
 
-        border_col = self.COLOR_GOLD if game_manager.victory else self.COLOR_RED
-        pygame.draw.rect(self.screen, border_col, (bx, by, banner_w, banner_h), 3, border_radius=12)
-
         if game_manager.victory:
+            border_col = self.COLOR_GOLD
             t1 = self.font_title.render("VICTORY ACHIEVED!", True, self.COLOR_GOLD)
             t2 = self.font_normal.render(f"Gold retrieved safely! Final Score: {game_manager.score}", True, self.COLOR_TEXT_MAIN)
-        else:
+        elif game_manager.death_reason == "FALL_IN_PIT":
+            border_col = self.COLOR_RED
             t1 = self.font_title.render("EXPEDITION FAILED", True, self.COLOR_RED)
-            reason = "Fell into an abyss Pit!" if game_manager.death_reason == "FALL_IN_PIT" else "Devoured by the Wumpus!"
-            t2 = self.font_normal.render(f"{reason} Final Score: {game_manager.score}", True, self.COLOR_TEXT_MAIN)
+            t2 = self.font_normal.render(f"Fell into an abyss Pit! Final Score: {game_manager.score}", True, self.COLOR_TEXT_MAIN)
+        elif game_manager.death_reason == "EATEN_BY_WUMPUS":
+            border_col = self.COLOR_RED
+            t1 = self.font_title.render("EXPEDITION FAILED", True, self.COLOR_RED)
+            t2 = self.font_normal.render(f"Devoured by the Wumpus! Final Score: {game_manager.score}", True, self.COLOR_TEXT_MAIN)
+        else:
+            border_col = self.COLOR_CYAN
+            t1 = self.font_title.render("EXPEDITION ABORTED", True, self.COLOR_CYAN)
+            t2 = self.font_normal.render(f"Retreated safely without Gold. Final Score: {game_manager.score}", True, self.COLOR_TEXT_MAIN)
+
+        pygame.draw.rect(self.screen, border_col, (bx, by, banner_w, banner_h), 3, border_radius=12)
 
         t3 = self.font_small.render("Press [R] Replay  |  [M] New Map  |  [D] Default Map", True, self.COLOR_CYAN)
 
