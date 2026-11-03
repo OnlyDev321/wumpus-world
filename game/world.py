@@ -289,11 +289,13 @@ class World:
         dr, dc = DIRECTIONS[direction]
         room = self.room_of(from_pos)
         r, c = from_pos
+        self.last_arrow_end = from_pos  # last cell the arrow reached (for the flight animation)
         while True:
             r += dr
             c += dc
             if (r, c) not in self.cells or self.room_of((r, c)) != room:
                 return False
+            self.last_arrow_end = (r, c)
             if self.is_wumpus_alive and (r, c) == self.wumpus:
                 self.is_wumpus_alive = False
                 self.last_action_screamed = True

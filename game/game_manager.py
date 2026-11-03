@@ -32,6 +32,8 @@ class GameManager:
         self.agent_class = type(agent)
         self.history = []  # results of finished games in this session (for Analytics)
         self._reset_stats()
+        self.last_shot = None  # latest arrow flight, read by the renderer to animate it
+        self._shot_seq = 0
 
         self.initial_perceive()
 
@@ -156,6 +158,7 @@ class GameManager:
         if self.sound_manager:
             self.sound_manager.stop_all()
         self.logs.clear()
+        self.last_shot = None
         self._reset_stats()
         self.initial_perceive()
         self.add_log(log_msg)
@@ -239,7 +242,12 @@ class GameManager:
         self.agent.has_arrow = False
         self.stats["shots"] += 1
         self.score -= 10
-        if self.world.shoot_arrow(self.agent.position, direction):
+        start = self.agent.position
+        hit = self.world.shoot_arrow(start, direction)
+        self._shot_seq += 1
+        self.last_shot = {"id": self._shot_seq, "start": start, "end": self.world.last_arrow_end,
+                          "direction": direction, "hit": hit}
+        if hit:
             self.score += self.WUMPUS_BONUS
             self.stats["kills"] += 1
             self.add_log(T("log.hit", who=who, dir=T(f"dir.{direction}"), bonus=self.WUMPUS_BONUS))

@@ -33,6 +33,8 @@ class Renderer:
         self.board_rect = pygame.Rect(self.game_rect.x + (self.game_rect.width - board) // 2, 88, board, board)
 
         self._minimap_rooms = []
+        self._shot_seen = None  # id of the arrow flight being animated
+        self._shot_t0 = 0
         self.assets = {}
         self._load_sprites()
 
@@ -95,6 +97,19 @@ class Renderer:
             except (pygame.error, FileNotFoundError, ValueError) as e:
                 print(f"Error loading {path}: {e}")
                 self.assets[key] = None
+
+        # Flying arrow: sprite points right, rotated copies for the other directions
+        path = asset("arrow.png")
+        try:
+            img = pygame.image.load(path)
+            img = img.subsurface(img.get_bounding_rect(min_alpha=10)).copy()
+            w, h = img.get_size()
+            length, thick = self.CELL * 0.62, self.CELL * 0.62 * h / w
+            for direction, angle in (("RIGHT", 0), ("UP", 90), ("LEFT", 180), ("DOWN", -90)):
+                size = (length, thick) if angle in (0, 180) else (thick, length)
+                self.assets[f"arrow_{direction}"] = self.p.scale_image(pygame.transform.rotate(img, angle), size)
+        except (pygame.error, FileNotFoundError, ValueError) as e:
+            print(f"Error loading {path}: {e}")
 
     def _blit(self, key, **anchor):
         self.p.blit(self.assets.get(key), **anchor)
@@ -167,6 +182,53 @@ class Renderer:
                 label = f"R{world.room_of(there) + 1}"
                 pill_c = (ex + dc * 24, ey + dr * 14)
                 p.tag(label, pill_c, t["on_primary"], t["primary"], size=11, anchor="center", height=18)
+
+        self._draw_arrow_flight(gm, room)
+
+    ARROW_MS_PER_CELL = 90
+    ARROW_HOLD_MS = 350  # arrow stays stuck in the wall / Wumpus, fading out
+
+    def _draw_arrow_flight(self, gm, room):
+        shot = gm.last_shot
+        if shot is None:
+            return
+        now = pygame.time.get_ticks()
+        if shot["id"] != self._shot_seen:
+            self._shot_seen = shot["id"]
+            self._shot_t0 = now
+        world = gm.world
+        if world.room_of(shot["start"]) != room:
+            return
+
+        def center(cell):
+            lr, lc = world.local(cell)
+            return (self.board_rect.x + lc * self.CELL + self.CELL // 2,
+                    self.board_rect.y + lr * self.CELL + self.CELL // 2)
+
+        direction = shot["direction"]
+        dr, dc = {"UP": (-1, 0), "DOWN": (1, 0), "LEFT": (0, -1), "RIGHT": (0, 1)}[direction]
+        (sx, sy), (ex, ey) = center(shot["start"]), center(shot["end"])
+        if not shot["hit"]:  # a miss flies on until it hits the room wall
+            edge = self.CELL // 2 - 14
+            ex, ey = ex + dc * edge, ey + dr * edge
+        cells = max(abs(shot["end"][0] - shot["start"][0]), abs(shot["end"][1] - shot["start"][1]))
+        flight = max(1, cells) * self.ARROW_MS_PER_CELL
+        elapsed = now - self._shot_t0
+        if elapsed > flight + self.ARROW_HOLD_MS:
+            return
+
+        img = self.assets.get(f"arrow_{direction}")
+        if img is None:
+            return
+        k = min(1.0, elapsed / flight)
+        k = 1 - (1 - k) ** 2  # ease-out
+        pos = (round(sx + (ex - sx) * k), round(sy + (ey - sy) * k))
+        if elapsed > flight:
+            img = img.copy()
+            img.set_alpha(round(255 * (1 - (elapsed - flight) / self.ARROW_HOLD_MS)))
+        # The tip leads: anchor the sprite so its head is at `pos`
+        anchor = {"RIGHT": "midright", "LEFT": "midleft", "UP": "midtop", "DOWN": "midbottom"}[direction]
+        self.p.blit(img, **{anchor: pos})
 
     def _draw_cell(self, gm, cell, rect):
         p, t = self.p, self.p.theme
