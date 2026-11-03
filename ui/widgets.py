@@ -9,6 +9,7 @@ class Widget:
         self._enabled = enabled or (lambda: True)
         self.hover = False
         self.pressed = False
+        self.hotkey = None  # keyboard shortcut shown in a tooltip on hover
 
     @property
     def enabled(self):
