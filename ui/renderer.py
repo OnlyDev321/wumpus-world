@@ -224,9 +224,10 @@ class Renderer:
     def _draw_percepts(self, world, cell, rect):
         """
         Each percept icon sits against the edge of the cell that faces its source:
-        breeze towards each neighbouring pit, stench towards the Wumpus, glitter towards
-        the gold. A cell next to two pits shows two breeze icons. Drawn from the map
-        itself so it also works in reveal mode; nothing on top of a pit or the Wumpus.
+        breeze towards each neighbouring pit, stench towards the Wumpus. A cell next to
+        two pits shows two breeze icons. Drawn from the map itself so it also works in
+        reveal mode; nothing on top of a pit or the Wumpus. Glitter is not drawn: it only
+        exists on the gold cell itself and is used by the agent as a percept.
         """
         if cell in world.pits or cell == world.wumpus:
             return
@@ -236,8 +237,6 @@ class Renderer:
                 key = "breeze"
             elif nb == world.wumpus and world.is_wumpus_alive:
                 key = "stench"
-            elif nb == world.gold and not world.gold_taken:
-                key = "glitter"
             else:
                 continue
             dr, dc = nb[0] - cell[0], nb[1] - cell[1]
