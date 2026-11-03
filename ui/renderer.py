@@ -153,8 +153,8 @@ class Renderer:
             rect = pygame.Rect(self.board_rect.x + lc * self.CELL, self.board_rect.y + lr * self.CELL, self.CELL, self.CELL)
             self._draw_cell(gm, cell, rect.inflate(-4, -4))
 
-        # Labels outside the board: which room each door leads to
-        for a, b in world.doors:
+        # Labels outside the board: which room each door leads to (only in reveal mode)
+        for a, b in (world.doors if self.reveal_all else ()):
             for here, there in ((a, b), (b, a)):
                 if world.room_of(here) != room:
                     continue
