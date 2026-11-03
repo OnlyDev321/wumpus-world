@@ -1,5 +1,6 @@
 from collections import deque
-from game.rules import deduce_knowledge, calculate_cell_risk, get_adjacent_cells
+from game.rules import deduce_knowledge, calculate_cell_risk
+from game.i18n import T, Join
 
 
 class Agent:
@@ -7,12 +8,18 @@ class Agent:
     AI Agent implementing the complete loop:
     Perception -> Memory -> Reasoning -> Decision Making -> Action.
     Enhanced with Episodic Memory to retain fatal failure causes across replays.
+
+    The agent knows the dungeon layout (rooms, doors, entrance and exit) but not where
+    the hazards and the gold are. It only reads layout data from `layout` (the World).
     """
 
-    def __init__(self, start_pos=(3, 0), size=4, death_memory=None):
-        self.size = size
-        self.start_pos = start_pos
-        self.position = start_pos
+    GOLD_DETOUR = 4  # max extra steps to line up a sure shot while carrying the gold
+
+    def __init__(self, layout, death_memory=None):
+        self.layout = layout
+        self.start_pos = layout.start_position
+        self.exit_pos = layout.exit_position
+        self.position = self.start_pos
         self.has_gold = False
         self.has_arrow = True
         self.is_alive = True
@@ -28,36 +35,39 @@ class Agent:
         # In-episode memory
         self.visited = set()
         self.percepts_history = {}
+        start = self.start_pos
         self.knowledge = {
-            "safe_cells": {start_pos} - self.death_memory["pits"],
+            "safe_cells": {start} - self.death_memory["pits"],
             "confirmed_pits": set(self.death_memory["pits"]),
             "confirmed_wumpus": self.death_memory["wumpus"],
             "possible_pits": set(self.death_memory["pits"]),
             "possible_wumpus": {self.death_memory["wumpus"]} if self.death_memory["wumpus"] else set(),
-            "pit_free": {start_pos} - self.death_memory["pits"],
-            "wumpus_free": {start_pos} if self.death_memory["wumpus"] != start_pos else set(),
+            "pit_free": {start} - self.death_memory["pits"],
+            "wumpus_free": {start} if self.death_memory["wumpus"] != start else set(),
         }
 
-        # Path queue & thoughts
         self.last_action = "INITIALIZED"
         if self.has_death_memory():
-            summary = self.get_memory_summary()
-            self.thought_process = f"🧠 Replay initialized with episodic memory ({summary})."
+            self.thought_process = T("th.replay", summary=self.get_memory_summary())
         else:
-            self.thought_process = "Agent initialized at safe start position."
+            self.thought_process = T("th.start")
 
-    def reset(self, start_pos=(3, 0), keep_memory=False):
+    def neighbors(self, pos):
+        return self.layout.get_adjacent(pos)
+
+    def name(self, pos):
+        return self.layout.label(pos)
+
+    def reset(self, keep_memory=False):
         """
-        Resets Agent state for a new round.
+        Resets Agent state for a new round (reads the current layout again).
         If keep_memory is True, retains death_memory learned from previous failures on this map.
         """
         retained_mem = self.death_memory if keep_memory else None
-        self.__init__(start_pos, self.size, death_memory=retained_mem)
+        self.__init__(self.layout, death_memory=retained_mem)
 
     def record_death(self, reason, fatal_cell):
-        """
-        Registers fatal outcome into episodic memory so the agent avoids repeating it upon replay.
-        """
+        """Registers fatal outcome into episodic memory so the agent avoids repeating it upon replay."""
         if reason == "FALL_IN_PIT":
             self.death_memory["pits"].add(fatal_cell)
         elif reason == "EATEN_BY_WUMPUS":
@@ -68,34 +78,26 @@ class Agent:
         self.death_memory = {"pits": set(), "wumpus": None}
 
     def has_death_memory(self):
-        """Returns True if agent has learned any fatal hazards from previous runs."""
         return bool(self.death_memory["pits"] or self.death_memory["wumpus"] is not None)
 
     def get_memory_summary(self):
-        """Returns human-readable summary of recalled hazards."""
         items = []
         if self.death_memory["pits"]:
-            pits_str = ", ".join(str(p) for p in sorted(list(self.death_memory["pits"])))
-            items.append(f"Pit(s) at {pits_str}")
+            items.append(T("mem.pit", cells=", ".join(self.name(p) for p in sorted(self.death_memory["pits"]))))
         if self.death_memory["wumpus"]:
-            items.append(f"Wumpus at {self.death_memory['wumpus']}")
-        return "; ".join(items) if items else "No fatal history"
+            items.append(T("mem.wumpus", cell=self.name(self.death_memory["wumpus"])))
+        return Join(items, "; ") if items else T("mem.none")
 
     def perceive(self, current_percepts):
-        """
-        PERCEPTION Stage:
-        Receives environmental signals at current cell and records to memory.
-        """
+        """PERCEPTION: records the signals at the current cell."""
         self.visited.add(self.position)
         self.percepts_history[self.position] = set(current_percepts)
 
     def reason(self, is_wumpus_alive=True):
-        """
-        REASONING Stage:
-        Applies logic rules and cross-episode death memory to update the Knowledge Base.
-        """
+        """REASONING: applies logic rules and death memory to update the Knowledge Base."""
         self.knowledge = deduce_knowledge(
-            self.size,
+            self.layout.cells,
+            self.neighbors,
             self.visited,
             self.percepts_history,
             is_wumpus_alive,
@@ -104,161 +106,182 @@ class Agent:
 
     def find_shortest_path(self, target_cells, allowed_cells):
         """
-        Finds the shortest path (BFS) from current position to any cell in `target_cells`,
-        traversing only through `allowed_cells`.
+        BFS from the current position to any cell in `target_cells`,
+        stepping only through `allowed_cells`. Returns the steps after the current cell.
         """
         if not target_cells:
             return None
 
         queue = deque([(self.position, [self.position])])
-        visited_in_search = {self.position}
-
+        seen = {self.position}
         while queue:
             current, path = queue.popleft()
-
             if current in target_cells and current != self.position:
-                return path[1:]  # Exclude start pos, return next steps
-
-            for neighbor in get_adjacent_cells(current, self.size):
-                if neighbor in allowed_cells and neighbor not in visited_in_search:
-                    visited_in_search.add(neighbor)
-                    queue.append((neighbor, path + [neighbor]))
-
+                return path[1:]
+            for nb in self.neighbors(current):
+                if nb in allowed_cells and nb not in seen:
+                    seen.add(nb)
+                    queue.append((nb, path + [nb]))
         return None
 
     def get_shoot_direction(self, target_pos):
-        """Determines shooting direction from current position if aligned along row/col."""
+        """Shooting direction if the target is in the same room and on the same row/column."""
+        if self.layout.room_of(target_pos) != self.layout.room_of(self.position):
+            return None
         r, c = self.position
         tr, tc = target_pos
         if r == tr:
             return "RIGHT" if tc > c else "LEFT"
-        elif c == tc:
+        if c == tc:
             return "DOWN" if tr > r else "UP"
         return None
 
-    def decide_next_action(self, is_wumpus_alive=True):
+    def _plan_shot(self, safe, max_steps=None):
         """
-        DECISION Stage:
-        Selects the optimal action based on current knowledge and goals.
-        """
-        current_percepts = self.percepts_history.get(self.position, set())
+        Returns a SHOOT action, a MOVE towards a firing spot, or None.
 
-        # 1. If Glitter observed -> GRAB GOLD
+        A shot is taken only when it cannot miss: the Wumpus is confirmed, or every cell
+        it could be in lies on one straight line inside one room, all on the same side
+        of a safe firing spot (the arrow flies through all of them).
+        """
+        if not self.has_arrow:
+            return None
+        kb = self.knowledge
+        targets = {kb["confirmed_wumpus"]} if kb.get("confirmed_wumpus") else set(kb["possible_wumpus"])
+        if not targets or len(targets) > 3:
+            return None
+        rooms = {self.layout.room_of(t) for t in targets}
+        if len(rooms) != 1:
+            return None
+        room = rooms.pop()
+
+        spots = {}
+        for pos in safe | {self.position}:
+            if self.layout.room_of(pos) != room or pos in targets:
+                continue
+            r, c = pos
+            if all(t[0] == r for t in targets):
+                if all(t[1] > c for t in targets):
+                    spots[pos] = "RIGHT"
+                elif all(t[1] < c for t in targets):
+                    spots[pos] = "LEFT"
+            if pos not in spots and all(t[1] == c for t in targets):
+                if all(t[0] > r for t in targets):
+                    spots[pos] = "DOWN"
+                elif all(t[0] < r for t in targets):
+                    spots[pos] = "UP"
+        if not spots:
+            return None
+
+        where = ", ".join(self.name(t) for t in sorted(targets))
+        if self.position in spots:
+            direction = spots[self.position]
+            self.last_action = f"SHOOT_{direction}"
+            key = "th.shoot_sure" if len(targets) == 1 else "th.shoot_line"
+            self.thought_process = T(key, where=where, dir=T(f"dir.{direction}"), bonus=500)
+            return {"type": "SHOOT", "direction": direction}
+
+        path = self.find_shortest_path(set(spots), safe)
+        if path and (max_steps is None or len(path) <= max_steps):
+            self.last_action = f"ALIGN_FOR_SHOT_{path[0]}"
+            self.thought_process = T("th.align", where=where, cell=self.name(path[0]))
+            return {"type": "MOVE", "to": path[0]}
+        return None
+
+    def _go_to_exit(self, reason_text):
+        """Climb out if standing on the exit, otherwise step along a safe path to it."""
+        if self.position == self.exit_pos:
+            self.last_action = "CLIMB_OUT"
+            self.thought_process = reason_text
+            return {"type": "CLIMB"}
+        path = self.find_shortest_path({self.exit_pos}, self.knowledge["safe_cells"] | {self.exit_pos})
+        if path:
+            self.last_action = f"TO_EXIT_{path[0]}"
+            self.thought_process = T("th.to_exit", exit=self.name(self.exit_pos), cell=self.name(path[0]))
+            return {"type": "MOVE", "to": path[0]}
+        return None
+
+    def decide_next_action(self, is_wumpus_alive=True):
+        """DECISION: selects the next action from current knowledge and goals."""
+        current_percepts = self.percepts_history.get(self.position, set())
+        # The exit ends the game as soon as it is stepped on, so it is kept out of
+        # exploration and only used when the agent decides to leave (_go_to_exit).
+        safe = self.knowledge["safe_cells"] - {self.exit_pos}
+
+        # 1. Glitter -> grab the gold
         if "glitter" in current_percepts and not self.has_gold:
             self.last_action = "GRAB_GOLD"
-            self.thought_process = "✨ Glitter detected! Grabbing the Gold!"
+            self.thought_process = T("th.grab")
             return {"type": "GRAB"}
 
-        # 2. If Gold already acquired -> RETREAT TO START CELL
+        # 2. Gold in hand -> go to the exit (not back to the entrance).
+        #    A sure shot only a few steps away is still worth the +500 detour.
         if self.has_gold:
-            if self.position == self.start_pos:
-                self.last_action = "CLIMB_OUT"
-                self.thought_process = "🏆 Gold brought back to start cell. Climbing out of the cave!"
-                return {"type": "CLIMB"}
+            action = self._plan_shot(safe, max_steps=self.GOLD_DETOUR) if is_wumpus_alive else None
+            if action:
+                return action
+            action = self._go_to_exit(T("th.leave_gold"))
+            if action:
+                return action
 
-            # Find safe path back to start
-            path_home = self.find_shortest_path({self.start_pos}, self.knowledge["safe_cells"])
-            if path_home:
-                next_cell = path_home[0]
-                self.last_action = f"RETURN_TO_{next_cell}"
-                self.thought_process = f"Carrying Gold safely back towards start via {next_cell}."
-                return {"type": "MOVE", "to": next_cell}
-
-        # 3. If there are UNVISITED SAFE CELLS -> Explore closest
-        unvisited_safe = self.knowledge["safe_cells"] - self.visited
+        # 3. Explore the closest safe unvisited cell
+        unvisited_safe = safe - self.visited
         if unvisited_safe:
-            path = self.find_shortest_path(unvisited_safe, self.knowledge["safe_cells"])
+            path = self.find_shortest_path(unvisited_safe, safe)
             if path:
-                next_cell = path[0]
-                self.last_action = f"EXPLORE_SAFE_{next_cell}"
-                self.thought_process = f"Found safe unvisited cell {path[-1]}. Moving to {next_cell}."
-                return {"type": "MOVE", "to": next_cell}
+                self.last_action = f"EXPLORE_SAFE_{path[0]}"
+                self.thought_process = T("th.explore", target=self.name(path[-1]), cell=self.name(path[0]))
+                return {"type": "MOVE", "to": path[0]}
 
-        # 4. If Wumpus location is CONFIRMED and arrow available -> SHOOT
-        confirmed_wumpus = self.knowledge.get("confirmed_wumpus")
-        if self.has_arrow and confirmed_wumpus and is_wumpus_alive:
-            shoot_dir = self.get_shoot_direction(confirmed_wumpus)
-            if shoot_dir:
-                self.last_action = f"SHOOT_{shoot_dir}"
-                self.thought_process = f"🎯 Locked onto Wumpus at {confirmed_wumpus}! Shooting {shoot_dir}!"
-                return {"type": "SHOOT", "direction": shoot_dir}
-            else:
-                # Navigate to a safe cell aligned with Wumpus
-                aligned_safe = [
-                    pos for pos in self.knowledge["safe_cells"]
-                    if (pos[0] == confirmed_wumpus[0] or pos[1] == confirmed_wumpus[1])
-                ]
-                align_path = self.find_shortest_path(aligned_safe, self.knowledge["safe_cells"])
-                if align_path:
-                    next_cell = align_path[0]
-                    self.last_action = f"ALIGN_FOR_SHOT_{next_cell}"
-                    self.thought_process = f"Repositioning to {next_cell} to align shot against Wumpus."
-                    return {"type": "MOVE", "to": next_cell}
+        # 4. Safe exploration is done: hunt the Wumpus for +500 if a shot cannot miss
+        if is_wumpus_alive:
+            action = self._plan_shot(safe)
+            if action:
+                return action
 
-        # 5. If NO 100% safe cells remain: Global Frontier Risk Evaluation
-        # Instead of giving up when immediate neighbors are hazard-blocked,
-        # scan the entire frontier of visited territory to find the lowest-risk unvisited cell on the board.
+        # 5. No safe cells left: pick the lowest-risk cell on the whole explored frontier
         frontier_candidates = []
-        safe_path_cells = self.knowledge["safe_cells"]
-
         for v_cell in self.visited:
-            for nb in get_adjacent_cells(v_cell, self.size):
-                if nb not in self.visited:
-                    risk = calculate_cell_risk(nb, self.knowledge)
-                    if risk < 10:  # Exclude confirmed hazards
-                        if v_cell == self.position:
-                            path_to_bridge = []
-                            dist = 1
-                        else:
-                            path_to_bridge = self.find_shortest_path({v_cell}, safe_path_cells)
-                            if path_to_bridge is None:
-                                continue  # No safe route back to that bridge cell
-                            dist = len(path_to_bridge) + 1
-
-                        frontier_candidates.append((risk, dist, nb, v_cell, path_to_bridge))
+            for nb in self.neighbors(v_cell):
+                if nb in self.visited or nb == self.exit_pos:
+                    continue
+                risk = calculate_cell_risk(nb, self.knowledge)
+                if risk >= 10:  # confirmed hazard
+                    continue
+                if v_cell == self.position:
+                    path_to_bridge, dist = [], 1
+                else:
+                    path_to_bridge = self.find_shortest_path({v_cell}, safe)
+                    if path_to_bridge is None:
+                        continue
+                    dist = len(path_to_bridge) + 1
+                frontier_candidates.append((risk, dist, nb, v_cell, path_to_bridge))
 
         if frontier_candidates:
-            # Prioritize lowest risk first, then closest distance
             frontier_candidates.sort(key=lambda item: (item[0], item[1]))
-            lowest_risk, dist, chosen_target, bridge_cell, path_to_bridge = frontier_candidates[0]
+            lowest_risk, dist, target, bridge, path_to_bridge = frontier_candidates[0]
 
-            # If adjacent to current position, step directly into the risky frontier cell
-            if bridge_cell == self.position:
-                avoided_hazards = [
-                    nb for nb in get_adjacent_cells(self.position, self.size)
+            if bridge == self.position:
+                avoided = [
+                    nb for nb in self.neighbors(self.position)
                     if nb in self.death_memory["pits"] or nb == self.death_memory["wumpus"]
                 ]
-                avoidance_note = ""
-                if avoided_hazards:
-                    avoidance_note = f" 🧠 [Memory] Avoided fatal cell(s) {avoided_hazards}!"
+                note = T("th.avoided", cells=", ".join(self.name(a) for a in avoided)) if avoided else ""
+                self.last_action = f"RISKY_MOVE_{target}"
+                self.thought_process = Join(
+                    [T("th.risky", cell=self.name(target), risk=f"{lowest_risk:.0%}"), note], "")
+                return {"type": "MOVE", "to": target}
 
-                self.last_action = f"RISKY_MOVE_{chosen_target}"
-                self.thought_process = (
-                    f"⚠️ No safe cells left. Taking calculated risk into {chosen_target} "
-                    f"(Risk: {lowest_risk}).{avoidance_note}"
-                )
-                return {"type": "MOVE", "to": chosen_target}
-            else:
-                # Reposition safely across visited safe cells toward the chosen frontier
-                next_step = path_to_bridge[0]
-                self.last_action = f"NAVIGATE_TO_FRONTIER_{next_step}"
-                self.thought_process = (
-                    f"🧭 Repositioning via {next_step} towards lowest-risk frontier {chosen_target} "
-                    f"(Risk: {lowest_risk}, {dist} steps away)."
-                )
-                return {"type": "MOVE", "to": next_step}
+            self.last_action = f"NAVIGATE_TO_FRONTIER_{path_to_bridge[0]}"
+            self.thought_process = T("th.frontier", cell=self.name(path_to_bridge[0]), target=self.name(target),
+                                     risk=f"{lowest_risk:.0%}", dist=dist)
+            return {"type": "MOVE", "to": path_to_bridge[0]}
 
-        # 6. Absolute Deadlock: all board frontiers are confirmed hazards -> Retreat safely
-        if self.position == self.start_pos:
-            self.last_action = "CLIMB_OUT"
-            self.thought_process = "🛑 Environment is too dangerous. Retreating safely without gold."
-            return {"type": "CLIMB"}
+        # 6. Nothing left to explore: leave through the exit without the gold
+        action = self._go_to_exit(T("th.leave_nogold"))
+        if action:
+            return action
 
-        path_home = self.find_shortest_path({self.start_pos}, self.knowledge["safe_cells"])
-        if path_home:
-            next_cell = path_home[0]
-            self.last_action = f"RETREAT_TO_{next_cell}"
-            self.thought_process = f"Blocked, retreating to start position via {next_cell}."
-            return {"type": "MOVE", "to": next_cell}
-
+        self.last_action = "TRAPPED"
+        self.thought_process = T("th.trapped")
         return {"type": "PASS"}

@@ -2,21 +2,15 @@
 Propositional Logic Reasoning System for Wumpus World AI.
 """
 
-
-def get_adjacent_cells(pos, size=4):
-    """Returns valid adjacent cells (4 directions: Up, Down, Left, Right) within grid size."""
-    r, c = pos
-    adjacent = []
-    for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-        nr, nc = r + dr, c + dc
-        if 0 <= nr < size and 0 <= nc < size:
-            adjacent.append((nr, nc))
-    return adjacent
+# Chance that an unexplored cell holds a pit (matches World.pit_prob)
+PIT_PRIOR = 0.15
 
 
-def deduce_knowledge(size, visited, percepts_history, is_wumpus_alive=True, death_memory=None):
+def deduce_knowledge(cells, neighbors, visited, percepts_history, is_wumpus_alive=True, death_memory=None):
     """
     Deduces knowledge based on observation history and cross-episode death memory:
+    - cells: all cells of the dungeon
+    - neighbors: function pos -> cells reachable in one step (walls and doors respected)
     - visited: set of cells visited by Agent (100% safe)
     - percepts_history: dict {pos: set(percepts)}
     - is_wumpus_alive: bool
@@ -31,7 +25,7 @@ def deduce_knowledge(size, visited, percepts_history, is_wumpus_alive=True, deat
     - pit_free: set of cells guaranteed to have no Pit
     - wumpus_free: set of cells guaranteed to have no Wumpus
     """
-    all_cells = {(r, c) for r in range(size) for c in range(size)}
+    all_cells = set(cells)
 
     # Extract hazards learned from previous deaths in this world
     recalled_pits = set(death_memory.get("pits", set())) if death_memory else set()
@@ -43,7 +37,7 @@ def deduce_knowledge(size, visited, percepts_history, is_wumpus_alive=True, deat
         percepts = percepts_history.get(pos, set())
         # If no Breeze, all adjacent cells are guaranteed to have no Pit
         if "breeze" not in percepts:
-            for neighbor in get_adjacent_cells(pos, size):
+            for neighbor in neighbors(pos):
                 pit_free.add(neighbor)
 
     # Any recalled fatal pit must never be considered pit_free
@@ -59,7 +53,7 @@ def deduce_knowledge(size, visited, percepts_history, is_wumpus_alive=True, deat
             percepts = percepts_history.get(pos, set())
             # If no Stench, all adjacent cells are guaranteed to have no Wumpus
             if "stench" not in percepts:
-                for neighbor in get_adjacent_cells(pos, size):
+                for neighbor in neighbors(pos):
                     wumpus_free.add(neighbor)
 
     # 3. Deduce Wumpus location (Only exactly 1 Wumpus exists in the world)
@@ -78,7 +72,7 @@ def deduce_knowledge(size, visited, percepts_history, is_wumpus_alive=True, deat
                 # Wumpus must be located in the intersection of candidate cells for all Stench positions
                 candidate_sets = []
                 for sp in stench_positions:
-                    candidates = set(get_adjacent_cells(sp, size)) - wumpus_free
+                    candidates = set(neighbors(sp)) - wumpus_free
                     candidate_sets.append(candidates)
 
                 if candidate_sets:
@@ -100,12 +94,25 @@ def deduce_knowledge(size, visited, percepts_history, is_wumpus_alive=True, deat
     possible_pits = set(recalled_pits)
     breeze_positions = [pos for pos in visited if "breeze" in percepts_history.get(pos, set())]
 
+    breeze_candidates = []
     for bp in breeze_positions:
-        candidates = set(get_adjacent_cells(bp, size)) - pit_free
+        candidates = set(neighbors(bp)) - pit_free
         if len(candidates) == 1:
             # Only one unknown neighbor adjacent to a breeze cell -> Definitely a Pit
             confirmed_pits.update(candidates)
         possible_pits.update(candidates)
+        breeze_candidates.append(candidates)
+
+    # Rough chance of a pit in each candidate cell: a breeze shared by k unknown cells
+    # gives each of them ~1/k. A breeze already explained by a confirmed pit adds little.
+    pit_chance = {}
+    for candidates in breeze_candidates:
+        unknown = candidates - confirmed_pits
+        if not unknown:
+            continue
+        chance = PIT_PRIOR if candidates & confirmed_pits else 1 / len(unknown)
+        for cell in unknown:
+            pit_chance[cell] = max(pit_chance.get(cell, 0), chance)
 
     # 5. Determine definitively SAFE cells
     # Safe cell = Pit-Free AND Wumpus-Free (recalled fatal pits are strictly excluded)
@@ -119,28 +126,29 @@ def deduce_knowledge(size, visited, percepts_history, is_wumpus_alive=True, deat
         "possible_wumpus": possible_wumpus,
         "pit_free": pit_free,
         "wumpus_free": wumpus_free,
+        "pit_chance": pit_chance,
     }
 
 
 def calculate_cell_risk(cell, knowledge):
     """
-    Calculates the risk score of an unvisited cell when no 100% safe cells remain.
-    Lower values indicate lower danger:
-    0: Definitively safe
-    1: Might contain either Wumpus or Pit
-    2: Might contain both Wumpus and Pit
-    10: Definite hazard (Confirmed Pit or Confirmed Wumpus)
+    Estimated chance (0..1) that an unvisited cell is deadly, used when no 100% safe cells remain.
+    0: definitively safe, 10: confirmed hazard (never chosen).
     """
     if cell in knowledge["safe_cells"]:
         return 0
-    if cell in knowledge["confirmed_pits"]:
-        return 10
-    if knowledge["confirmed_wumpus"] == cell:
+    if cell in knowledge["confirmed_pits"] or knowledge["confirmed_wumpus"] == cell:
         return 10
 
-    risk = 0
+    pit = 0
     if cell in knowledge["possible_pits"]:
-        risk += 1
-    if cell in knowledge["possible_wumpus"]:
-        risk += 1
-    return risk
+        pit = knowledge.get("pit_chance", {}).get(cell, PIT_PRIOR)
+    elif cell not in knowledge["pit_free"]:
+        pit = PIT_PRIOR
+
+    wumpus = 0
+    possible_wumpus = knowledge["possible_wumpus"]
+    if cell in possible_wumpus:
+        wumpus = 1 / len(possible_wumpus)
+
+    return round(1 - (1 - pit) * (1 - wumpus), 3)

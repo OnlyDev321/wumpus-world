@@ -1,6 +1,8 @@
 import os
 import pygame
 
+from ui.paths import asset
+
 
 class SoundManager:
     """
@@ -8,7 +10,7 @@ class SoundManager:
     Safely degrades if audio device is unavailable or files are missing.
     """
 
-    def __init__(self, sound_dir="assets/sounds"):
+    def __init__(self, sound_dir=asset("sounds")):
         self.sounds = {}
         self.sound_dir = sound_dir
         self.is_enabled = True
