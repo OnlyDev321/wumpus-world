@@ -2,7 +2,7 @@
 
 ### 불확실한 환경에서 살아남는 AI Agent
 
-격자형 동굴 환경(4×4 Grid)에서 AI Agent가 **Breeze, Stench, Glitter, Scream** 등의 환경 신호(Percept)를 수집하여 지식 베이스(Knowledge Base)를 갱신하고, 명제 논리(Propositional Logic)와 BFS 탐색을 통해 안전한 경로를 추론하여 **Gold를 획득하고 무사히 탈출**하는 Agentic AI 프로젝트입니다.
+여러 개의 4×4 방으로 이루어진 던전(방 개수 1~6개 선택)에서 AI Agent가 **Breeze, Stench, Glitter, Scream** 등의 환경 신호(Percept)를 수집하여 지식 베이스(Knowledge Base)를 갱신하고, 명제 논리(Propositional Logic)와 BFS 탐색을 통해 안전한 경로를 추론하여 **Gold를 획득하고 무사히 탈출**하는 Agentic AI 프로젝트입니다.
 
 ---
 
@@ -11,14 +11,20 @@
 ```text
 wumpus-world/
 ├── main.py                  # 🚀 프로그램 진입점 및 이벤트 루프
-├── requirements.txt         # 📦 의존성 패키지 (Pygame 2.6.1)
+├── requirements.txt         # 📦 의존성 패키지 (pygame-ce 2.5.8)
 ├── game/                    # 🎮 핵심 게임 로직 & AI 엔진
 │   ├── agent.py             # 🤖 AI Agent 클래스 (Perception, Memory, Decision, BFS)
 │   ├── rules.py             # 📜 명제 논리 추론 엔진 (Knowledge Base & Risk Evaluation)
-│   ├── world.py             # 🗺️ 4x4 던전 환경, 위험 요소(Pit/Wumpus), 지각 신호 생성
+│   ├── world.py             # 🗺️ 다중 방 던전(벽·문·입구·출구), 위험 요소(Pit/Wumpus), 지각 신호 생성
 │   └── game_manager.py      # ⚙️ 게임 흐름 동기화, 점수 계산 및 게임 모드 제어
 ├── ui/                      # 🖥️ UI & 오디오 렌더링
-│   ├── renderer.py          # 🎨 Pygame 기반 2D 그래픽, Fog of War, 실시간 AI Mind HUD
+│   ├── renderer.py          # 🎨 방 화면, 미니맵, Agent 패널, 결과 모달 렌더링
+│   ├── dev_panel.py         # 📊 드래그 가능한 Analytics 창 (Dev mode)
+│   ├── controls.py          # 🎛️ 하단 컨트롤 바 (버튼, 스위치, 방 개수 선택)
+│   ├── widgets.py           # 🧩 Button / Switch / Segmented / Stepper 위젯
+│   ├── painter.py           # ✏️ 텍스트·도형·태그 드로잉 헬퍼
+│   ├── (game/i18n.py)       # 🌐 영어 / 한국어 UI 문자열
+│   ├── theme.py             # 🌗 Arco Design 스타일 라이트/다크 테마 토큰
 │   └── sound_manager.py     # 🔊 저지연 오디오 시스템 (Breeze, Stench, Glitter, Scream, Door, Pit, Wumpus, Gold)
 └── assets/                  # 🖼️ 고화질 2D 스프라이트 및 사운드 에셋
     ├── hero.png, door.png, floor.png, wumpus.png, pit.png, gold.png...
@@ -28,12 +34,13 @@ wumpus-world/
 
 | 모듈 / 파일            | 역할                                                                                              |
 | :--------------------- | :------------------------------------------------------------------------------------------------ |
-| `main.py`              | 🚀 Pygame 초기화, 윈도우 생성, 키보드 이벤트 분기 및 메인 루프 실행                               |
-| `game/world.py`        | 🗺️ 4×4 맵 생성(기본 맵/랜덤 맵), Pit/Wumpus/Gold 배치, 화살 궤적 계산 및 Percept 발생             |
+| `main.py`              | 🚀 Pygame 초기화, 윈도우 생성, 마우스/키보드 이벤트 분기 및 메인 루프 실행                        |
+| `game/world.py`        | 🗺️ 다중 방 던전 생성(클래식 맵/랜덤 맵), 문으로 연결된 방, Pit/Wumpus/Gold 배치, 화살 궤적 계산 및 Percept 발생 |
 | `game/agent.py`        | 🤖 AI Agent 상태 관리, 인지-추론-행동 루프, 에피소드 사망 기억(Episodic Memory), BFS 최단 경로 탐색 |
 | `game/rules.py`        | 📜 명제 논리 기반 지식 추론, 과거 실패 기억 통합(`death_memory`), 위험도 점수(`Risk Score`) 산출   |
 | `game/game_manager.py` | ⚙️ World와 Agent 상호작용 동기화, 사망 원인 기록(`record_death`), Replay 메모리 보존 제어          |
-| `ui/renderer.py`       | 🖥️ 전장 그리드, 시야 안개(Fog of War), AI 사고 과정(Thought Process) 및 HUD 실시간 렌더링         |
+| `ui/renderer.py`       | 🖥️ 현재 방 화면, 던전 미니맵, 시야 안개(Fog of War), AI 사고 과정 및 Agent 패널 렌더링          |
+| `ui/controls.py`       | 🎛️ 마우스로 조작하는 하단 컨트롤 바 (AI 실행, 맵, 수동 조작, 보기 설정)                          |
 | `ui/sound_manager.py`  | 🔊 지각 신호(Breeze/Stench/Glitter), 탈출(Door), 사망(Pit/Wumpus), 비명(Scream) 저지연 오디오 재생 엔진 |
 | `assets/`              | 🎨 던전 타일, 캐릭터, 몬스터, 지각 신호 스프라이트 및 효과음(.wav) 리소스                           |
 
@@ -105,7 +112,8 @@ AI Agent는 동굴을 탐험하며 각 칸에서 감각 정보(**Percept**)를 �
 |      👃       | **Stench (악취)**      | 상/하/좌/우 인접 칸에 Wumpus(괴물)가 살아있음을 감지                    |
 |      ✨       | **Glitter (반짝임)**   | 현재 위치한 칸에 Gold(금괴)가 존재함                                    |
 |      😱       | **Scream (비명)**      | Agent가 쏜 화살에 Wumpus가 명중하여 처치되었을 때 동굴 전체에 울려 퍼짐 |
-|      🚪       | **Door / Exit (입구)** | (3, 0) 위치. Gold를 획득한 후 이곳으로 돌아와 탈출(`CLIMB`)하면 승리    |
+|      🚪       | **Exit (출구)**        | 입구에서 가장 먼 방에 위치. 입구로는 나갈 수 없으며, Gold를 들고 출구에서 탈출(`CLIMB`)하면 승리 |
+|      🔷       | **Door (방 사이 문)**  | 이웃한 방을 연결. 양방향 이동 가능. 문과 그 주변 칸에는 위험 요소가 없음 |
 |      ❌       | **Pit (함정)**         | 빠지면 즉시 사망 및 게임 오버 (-1000점)                                 |
 |      👹       | **Wumpus (괴물)**      | 마주치면 즉시 사망 및 게임 오버 (-1000점). 화살로 사냥 가능             |
 |      🏹       | **Arrow (화살)**       | Agent가 단 1발 보유. 직선 경로로 날아가 Wumpus를 제거                   |
@@ -115,6 +123,7 @@ AI Agent는 동굴을 탐험하며 각 칸에서 감각 정보(**Percept**)를 �
 - **Gold 획득 후 무사 탈출 (Victory)**: `+1,000점`
 - **매 행동당 이동 비용 (Step Penalty)**: `-1점`
 - **화살 발사 비용 (Shoot Arrow)**: `-10점`
+- **Wumpus 처치 보너스 (Slay Wumpus)**: `+500점`
 - **Pit 추락 또는 Wumpus에 피격 (Game Over)**: `-1,000점`
 
 ---
@@ -142,11 +151,11 @@ Agent는 불확실한 부분 관측 환경(POMDP)에서 다음과 같은 **5단�
 ### 2. 행동 우선순위 (Decision Hierarchy)
 
 1. **Gold 획득 (`GRAB`)**: 현재 칸에 Glitter 감지 시 즉시 금괴 획득.
-2. **귀환 및 탈출 (`CLIMB`)**: Gold 소지 시, 기방문 안전 경로(BFS)를 통해 출발점 `(3, 0)`으로 복귀 후 동굴 탈출.
+2. **출구로 탈출 (`CLIMB`)**: Gold 소지 시, 안전 경로(BFS)를 통해 출구(입구와 다른 칸)로 이동 후 던전 탈출.
 3. **안전 구역 탐색 (`EXPLORE_SAFE`)**: 확정된 안전 미방문 셀 중 가장 가까운 목표로 안전 경로(BFS) 탐색 후 이동.
-4. **Wumpus 조준 사격 (`SHOOT`)**: Wumpus의 위치가 확정되고 화살이 남아있다면, 사선(가로/세로 일직선)에 위치한 안전 칸으로 재배치 후 화살 발사.
+4. **Wumpus 사냥 (`SHOOT`, +500점)**: 안전 탐색이 끝난 뒤, 위험을 감수하기 전에 실행. Wumpus 위치가 확정되었거나 후보 칸이 모두 같은 방의 한 직선 위에 있으면(빗나갈 수 없는 사격) 사선으로 이동 후 발사. Gold를 든 상태에서도 사격 위치가 4걸음 이내면 보너스를 위해 들렀다 갑니다.
 5. **전역 경계선 위험 감수 (`GLOBAL_FRONTIER_RISK`)**: 100% 안전한 미탐색 칸이 없는 경우, 현재 위치에 국한되지 않고 기방문 영역의 **전체 미개척 경계선(Global Frontier)**을 스캔하여 맵 전체에서 위험 점수(Risk Score)가 가장 낮은 최적 후보지로 안전 재배치 후 진입 (과거 사망 칸은 배제).
-6. **완전 고립 시 안전 후퇴 (`RETREAT`)**: 맵 상의 모든 경계선이 100% 확정된 위험(Confirmed Pits/Wumpus)으로 봉쇄되어 더 이상 전진할 수 없는 절대적 고립 상태일 때만 출발점으로 안전하게 후퇴하여 생존.
+6. **완전 고립 시 탈출 (`RETREAT`)**: 더 이상 탐색할 곳이 없으면 Gold 없이 출구로 이동해 탈출. 출구까지 안전한 길도 없으면 `TRAPPED` 상태로 종료.
 
 ### 3. 🧠 에피소드 사망 기억 및 적응 학습 (Episodic Memory & Failure Learning)
 
@@ -174,31 +183,56 @@ graph LR
 
 ## 🖥️ UI & Visualization 기능
 
-Pygame 기반으로 제작된 인터페이스는 직관적인 정보 전달과 몰입감을 제공합니다.
+[Arco Design System](https://www.figma.com/community/file/1053233047330321743/arco-design-system) 스타일의 깔끔한 카드 레이아웃입니다.
 
-- **동적 안개 시스템 (Fog of War)**: 미탐색 셀은 어두운 안개로 가려지며, Agent가 안전하다고 추론한 셀은 **녹색 테두리와 `SAFE` 배지**로 실시간 표시됩니다. 확정된 위험 지역(사망 기억 포함)은 `PIT!`, `WUMPUS!` 경고 태그가 부착됩니다.
-- **AI 실시간 사고 패널 (Thought Process)**: AI가 현재 왜 이 칸으로 이동하는지, 과거 사망 기억을 어떻게 회피하고 있는지 실시간 텍스트로 표시합니다.
-- **지식 베이스 통계 (Knowledge Dashboard)**:
-  - 발견한 안전 구역 수 (`Safe Cells: X/16`), 방문 구역 수 (`Visited: Y/16`)
-  - 확정된 함정 수 (`Pits Confirmed: N`), Wumpus 추적 상태 (`Hunting` / `At (r,c)` / `Slain`)
-- **실시간 감각 아이콘 (Percepts Badge)**: 현재 발을 디딘 셀에서 느껴지는 바람, 악취, 반짝임 신호를 전용 스프라이트 뱃지로 표시.
+- **좌측 상단 – 방 화면**: Agent가 있는 방을 픽셀 아트로 표시. 미탐색 칸은 안개, 추론된 안전 칸은 `SAFE`, 확정된 위험은 `PIT` / `WUMPUS` 태그. 다른 방으로 통하는 문은 가장자리의 파란 `R2` 표시.
+- **우측 상단 – 던전 미니맵**: 모든 방과 문, 방문한 칸, 입구/출구, Agent 위치. 방을 클릭하면 해당 방을 미리 볼 수 있습니다.
+- **Agent 패널**: 점수·걸음·Gold·화살, 현재 감각 신호, AI 추론 과정, 이벤트 로그.
+- **하단 컨트롤 바**: 키보드 없이 마우스로 모든 조작 가능.
+- **라이트 / 다크 테마** 전환.
+- **언어 전환 (EN / 한국어)**: 하단 보기 그룹에서 전환. 버튼, 패널, AI 추론, 로그까지 모두 즉시 바뀝니다. 한국어는 Helvetica Neue와 어울리는 macOS 기본 글꼴 Apple SD Gothic Neo로 표시됩니다.
 
 ---
 
-## ⌨️ 조작 키 안내 (Controls)
+## ⌨️ 조작 안내 (Controls)
 
-|                      키 (Key)                       | 기능                              | 설명                                                                |
-| :-------------------------------------------------: | :-------------------------------- | :------------------------------------------------------------------ |
-|                  <kbd>SPACE</kbd>                   | **AI 1단계 실행**                 | AI Agent가 다음 1단계를 추론하고 행동합니다.                        |
-|                    <kbd>A</kbd>                     | **자동 실행 모드 (Auto Mode)**    | 400ms 딜레이 간격으로 AI가 스스로 연속 탐색합니다.                  |
-|                   <kbd>TAB</kbd>                    | **안개 제거 / 복원 (Fog Toggle)** | Fog of War를 토글하여 전체 맵의 실제 정답 상태를 확인합니다.        |
-|                    <kbd>R</kbd>                     | **현재 맵 재시작 (Replay Map)**   | 동일한 맵 레이아웃을 다시 플레이하며, **사망 기억(Episodic Memory)을 계승**하여 새로운 경로를 개척합니다. |
-|                    <kbd>M</kbd>                     | **랜덤 맵 생성 (New Random Map)** | 신규 맵을 생성하며 기존 사망 기억을 완전히 초기화(Wipe)합니다.       |
-|                    <kbd>D</kbd>                     | **기본 맵 로드 (Default Map)**    | 표준 기본 맵을 로드하며 기존 사망 기억을 완전히 초기화(Wipe)합니다. |
-| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | **수동 조작 (Manual Move)**       | 사용자가 직접 상하좌우로 이동하여 AI와 플레이를 비교할 수 있습니다. |
-| <kbd>Shift</kbd> + <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | **수동 활 쏘기 (Manual Shoot)** | 해당 방향으로 화살을 발사하여 Wumpus를 공격합니다. (1회 제한) |
-|                    <kbd>G</kbd>                     | **수동 줍기 (Manual Grab)**       | 현재 위치한 칸의 Gold를 수동으로 획득합니다.                        |
-|                    <kbd>C</kbd>                     | **수동 탈출 (Manual Climb)**      | 입구 (3, 0)에서 동굴 밖으로 탈출하여 게임을 완료합니다.             |
+모든 기능은 하단 컨트롤 바에서 마우스로 사용할 수 있으며, 아래 단축키도 그대로 동작합니다.
+
+|                      키 (Key)                       | 화면 컨트롤                  | 설명                                                                |
+| :-------------------------------------------------: | :--------------------------- | :------------------------------------------------------------------ |
+|      <kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd>      | **Play mode** Auto / Step / Manual | 현재 모드를 선택하고 표시합니다. 선택한 모드의 컨트롤만 활성화됩니다. |
+|                  <kbd>SPACE</kbd>                   | **Next step**                | Step 모드로 전환하고 AI Agent가 다음 1단계를 추론하고 행동합니다.   |
+|                    <kbd>A</kbd>                     | **Auto** 모드                | AI가 스스로 연속 탐색합니다 (다시 누르면 Step). 속도는 Slow / Normal / Fast. |
+|                    <kbd>M</kbd>                     | **New map**                  | 선택한 방 개수로 새 던전을 생성하며 사망 기억을 초기화합니다.       |
+|                    <kbd>R</kbd>                     | **Replay**                   | 같은 맵을 다시 플레이하며 **사망 기억(Episodic Memory)을 계승**합니다. |
+|                    <kbd>D</kbd>                     | **Classic**                  | 원래의 4×4 클래식 맵(입구 (3,0), 출구 (0,3))을 로드합니다.          |
+|             <kbd>+</kbd> / <kbd>-</kbd>             | **Rooms** − / +              | 방 개수(1~6)를 바꾸고 새 던전을 생성합니다.                         |
+| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | 방향 버튼                    | 수동 이동 (Manual 모드로 전환). 벽은 통과할 수 없고 문으로만 다른 방에 갈 수 있습니다.   |
+| <kbd>Shift</kbd> + 방향키                           | **Shoot mode** + 방향 버튼   | 해당 방향으로 화살 발사 (1회, 같은 방 안에서만 날아감).             |
+|                    <kbd>G</kbd>                     | **Grab gold**                | 현재 칸의 Gold를 획득합니다. 출구 칸에 들어서면 즉시 탈출하며 게임이 끝납니다 (입구로는 나갈 수 없음). |
+|                    <kbd>C</kbd>                     | **Enter door**               | 수동 조작 시 문 칸에서 멈추며, C를 눌러야 옆 방으로 들어갑니다 (AI는 자동으로 통과). |
+|                   <kbd>TAB</kbd>                    | **Reveal map** 스위치 (방 카드 상단) | 안개를 걷고 전체 맵의 실제 상태를 표시합니다.                |
+|                    <kbd>L</kbd>                     | **EN / 한국어**              | 인터페이스 언어 전환.                                               |
+|                    <kbd>T</kbd>                     | **Dark theme** 스위치        | 라이트 / 다크 테마 전환.                                            |
+|                          –                          | **Sound** 스위치             | 효과음 켜기 / 끄기.                                                 |
+
+---
+
+## 📊 Dev mode (Analytics)
+
+Agent 패널의 **Analytics** 버튼(또는 <kbd>F1</kbd>)을 누르면 드래그 가능한 분석 창이 열립니다.
+
+- **Current game**: 결과, 걸음 수, 탐색률, 결정당 사고 시간(평균/최대 ms), 위험 이동 횟수, 문 통과, 화살 사용, 경과 시간
+- **Session**: 이번 실행에서 끝난 게임 수, 승률, Pit/Wumpus 사망률, 평균 점수·걸음·탐색률
+- **Benchmark**: 선택한 알고리즘으로 50/100/250 게임을 그래픽 없이 실행. **모든 알고리즘이 같은 맵 세트**에서 테스트되므로 결과를 바로 비교할 수 있습니다.
+
+자신의 알고리즘을 비교하려면 `game/algorithms.py`에서 `Agent`를 상속해 `decide_next_action`을 구현하고 `ALGORITHMS`에 추가하세요. 예시로 위험을 전혀 감수하지 않는 `Safe only` 기준 알고리즘이 들어 있습니다.
+
+터미널에서도 실행할 수 있습니다:
+
+```bash
+python -m game.benchmark --games 200 --rooms 3
+```
 
 ---
 
@@ -207,7 +241,7 @@ Pygame 기반으로 제작된 인터페이스는 직관적인 정보 전달과 �
 | 기술                | 용도              | 설명                                                        |
 | :------------------ | :---------------- | :---------------------------------------------------------- |
 | 🐍 **Python 3.10+** | Core Logic        | 게임 환경 및 AI Agent 구현                                  |
-| 🎮 **Pygame 2.6.1** | Graphics & Audio  | 60 FPS 2D 하드웨어 가속 렌더링 및 입력 이벤트 처리          |
+| 🎮 **pygame-ce 2.5.8** | Graphics & Audio  | 60 FPS 2D 렌더링, Retina(High-DPI) 지원, 입력 이벤트 처리 |
 | 🧠 **Symbolic AI**  | Knowledge & Logic | 명제 논리(Propositional Logic), 지식 베이스 추론            |
 | 🧭 **Algorithms**   | Pathfinding       | BFS(너비 우선 탐색) 최단 경로 알고리즘, Risk Score 휴리스틱 |
 
@@ -223,6 +257,10 @@ cd wumpus-world
 ```
 
 ### 2. 가상환경 생성 및 활성화
+
+> Python **3.10 ~ 3.14** 중 아무 버전이나 사용 가능합니다 (권장: 3.14, `.python-version` 참고).
+> 가상환경(`.venv`)은 Git에 올리지 않습니다. 컴퓨터마다 직접 새로 만드세요.
+> 폰트(Pretendard)는 `assets/fonts`에 포함되어 있어 macOS / Windows / Linux에서 동일하게 보입니다.
 
 **macOS / Linux**
 

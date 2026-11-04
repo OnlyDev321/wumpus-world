@@ -1,2 +1,13 @@
+# Virtual environments (each computer creates its own)
 .venv/
-__pycache__
+.venv*/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS / editor files
+.DS_Store
+.idea/
+.vscode/
