@@ -22,7 +22,10 @@ def handle_key(key, gm, renderer, dev_panel=None):
     """Keyboard shortcuts mirror the on-screen controls."""
     if key == pygame.K_F1 and dev_panel:
         dev_panel.toggle()
+    elif key in (pygame.K_1, pygame.K_2, pygame.K_3):
+        gm.set_play_mode(gm.PLAY_MODES[key - pygame.K_1])
     elif key == pygame.K_SPACE:
+        gm.set_play_mode("step")
         gm.step_ai()
     elif key == pygame.K_a:
         gm.auto_mode = not gm.auto_mode
@@ -50,6 +53,8 @@ def handle_key(key, gm, renderer, dev_panel=None):
             gm.manual_move(*MOVES[direction])
     elif key == pygame.K_g:
         gm.manual_grab()
+    elif key == pygame.K_c:
+        gm.manual_enter_door()
 
 
 def create_window(title):

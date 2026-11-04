@@ -63,11 +63,11 @@ def algorithm_label(name):
 STRINGS = {
     "en": {
         # Bottom bar
-        "group.agent": "Agent", "group.dungeon": "Dungeon", "group.manual": "Manual control", "group.view": "View",
-        "btn.step": "Step", "sw.auto": "Auto play",
+        "group.agent": "Play mode", "group.dungeon": "Dungeon", "group.manual": "Manual control", "group.view": "View",
+        "btn.step": "Next step", "mode.auto": "Auto", "mode.step": "Step", "mode.manual": "Manual",
         "speed.slow": "Slow", "speed.normal": "Normal", "speed.fast": "Fast",
         "btn.new_map": "New map", "btn.replay": "Replay", "btn.classic": "Classic", "label.rooms": "Rooms",
-        "sw.shoot": "Shoot mode", "btn.grab": "Grab gold",
+        "sw.shoot": "Shoot mode", "btn.grab": "Grab gold", "btn.door": "Enter door",
         "sw.reveal": "Reveal map", "sw.dark": "Dark theme", "sw.sound": "Sound", "btn.analytics": "Analytics",
         # Room view
         "room.title": "Room {n}", "room.of": "of {n}",
@@ -78,7 +78,7 @@ STRINGS = {
         # Agent panel
         "agent.title": "Agent",
         "status.victory": "Victory", "status.trapped": "Trapped", "status.dead": "Dead", "status.escaped": "Escaped",
-        "status.auto": "Auto running", "status.waiting": "Waiting",
+        "status.auto": "Auto running", "status.waiting": "Waiting", "status.manual": "Your move",
         "stat.score": "Score", "stat.steps": "Steps", "stat.gold": "Gold", "stat.arrow": "Arrow",
         "gold.found": "Found", "gold.not_yet": "Not yet",
         "label.percepts": "Percepts", "label.reasoning": "Reasoning", "label.log": "Log",
@@ -133,6 +133,7 @@ STRINGS = {
         "log.algorithm": "Algorithm: {name}.", "log.you": "You: ",
         "log.moved": "{who}Moved to {cell}", "log.room": "Entered Room {n}",
         "log.door": "Went through the door into Room {n}",
+        "log.at_door": "Door to Room {n}. Press C to enter.", "log.no_door": "No door here.",
         "log.pit": "Fell into a pit at {cell}. Memorized for replay.",
         "log.wumpus": "Eaten by the Wumpus at {cell}. Memorized for replay.",
         "log.grab": "{who}Grabbed the gold (+1000)", "log.no_gold": "No gold here.",
@@ -144,11 +145,11 @@ STRINGS = {
         "log.trapped": "The agent is trapped: no safe moves left.", "log.wall": "A wall blocks the way.",
     },
     "ko": {
-        "group.agent": "에이전트", "group.dungeon": "던전", "group.manual": "수동 조작", "group.view": "보기",
-        "btn.step": "한 단계", "sw.auto": "자동 실행",
+        "group.agent": "플레이 모드", "group.dungeon": "던전", "group.manual": "수동 조작", "group.view": "보기",
+        "btn.step": "다음 단계", "mode.auto": "자동", "mode.step": "단계별", "mode.manual": "수동",
         "speed.slow": "느리게", "speed.normal": "보통", "speed.fast": "빠르게",
         "btn.new_map": "새 맵", "btn.replay": "다시 하기", "btn.classic": "클래식", "label.rooms": "방 개수",
-        "sw.shoot": "사격 모드", "btn.grab": "금괴 줍기",
+        "sw.shoot": "사격 모드", "btn.grab": "금괴 줍기", "btn.door": "문 통과",
         "sw.reveal": "전체 맵 보기", "sw.dark": "다크 테마", "sw.sound": "사운드", "btn.analytics": "분석",
         "room.title": "방 {n}", "room.of": "/ {n}",
         "tag.preview": "미리보기 · 지도를 눌러 복귀", "tag.entrance": "입구", "tag.exit": "출구",
@@ -156,7 +157,7 @@ STRINGS = {
         "map.title": "던전 지도", "map.explored": "탐색 {a}/{b}칸",
         "agent.title": "에이전트",
         "status.victory": "승리", "status.trapped": "고립", "status.dead": "사망", "status.escaped": "탈출",
-        "status.auto": "자동 실행 중", "status.waiting": "대기 중",
+        "status.auto": "자동 실행 중", "status.waiting": "대기 중", "status.manual": "플레이어 차례",
         "stat.score": "점수", "stat.steps": "걸음", "stat.gold": "금괴", "stat.arrow": "화살",
         "gold.found": "획득", "gold.not_yet": "아직",
         "label.percepts": "감각", "label.reasoning": "추론", "label.log": "로그",
@@ -206,6 +207,7 @@ STRINGS = {
         "log.algorithm": "알고리즘: {name}.", "log.you": "플레이어: ",
         "log.moved": "{who}{cell}(으)로 이동", "log.room": "방 {n} 진입",
         "log.door": "문을 지나 방 {n}(으)로 이동",
+        "log.at_door": "방 {n}(으)로 가는 문입니다. C를 눌러 들어가세요.", "log.no_door": "여기에는 문이 없습니다.",
         "log.pit": "{cell}에서 함정에 빠졌습니다. 다시 하기를 위해 기억합니다.",
         "log.wumpus": "{cell}에서 웜퍼스에게 잡아먹혔습니다. 다시 하기를 위해 기억합니다.",
         "log.grab": "{who}금괴 획득 (+1000)", "log.no_gold": "여기에는 금괴가 없습니다.",

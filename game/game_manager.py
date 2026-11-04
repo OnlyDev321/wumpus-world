@@ -26,7 +26,7 @@ class GameManager:
         self.game_over = False
         self.victory = False
         self.death_reason = None
-        self.auto_mode = False
+        self.play_mode = "step"  # "auto", "step" (AI one move at a time) or "manual" (the player)
         self.speed = "normal"
         self.logs = []
         self.agent_class = type(agent)
@@ -36,6 +36,27 @@ class GameManager:
         self._shot_seq = 0
 
         self.initial_perceive()
+
+    # ------------------------------------------------------------------
+    # Play mode
+    # ------------------------------------------------------------------
+    PLAY_MODES = ("auto", "step", "manual")
+
+    def set_play_mode(self, mode):
+        if mode in self.PLAY_MODES:
+            self.play_mode = mode
+
+    @property
+    def auto_mode(self):
+        return self.play_mode == "auto"
+
+    @auto_mode.setter
+    def auto_mode(self, value):
+        """Turning auto on selects Auto; turning it off falls back to Step."""
+        if value:
+            self.play_mode = "auto"
+        elif self.play_mode == "auto":
+            self.play_mode = "step"
 
     # ------------------------------------------------------------------
     # Analytics
@@ -166,7 +187,7 @@ class GameManager:
     # ------------------------------------------------------------------
     # Shared action handlers (used by both the AI and the player)
     # ------------------------------------------------------------------
-    def _move_to(self, pos, who=""):
+    def _move_to(self, pos, who="", auto_door=True):
         prev_room = self.world.room_of(self.agent.position)
         self.agent.position = pos
         self.world.agent_position = pos
@@ -192,10 +213,15 @@ class GameManager:
             self._climb(who)
             return
 
-        # Stepping onto a door from inside its room carries you through it.
-        # Arriving on a door from the other side does not, so you are not bounced back.
+        # Stepping onto a door from inside its room carries the AI through it.
+        # Arriving on a door from the other side does not, so it is not bounced back.
+        # The player stops on the door and chooses to enter it with C.
         if pos in self.world.door_cells and new_room == prev_room:
-            self._go_through_door(pos)
+            if auto_door:
+                self._go_through_door(pos)
+            else:
+                target = self.world.door_partner(pos)
+                self.add_log(T("log.at_door", n=self.world.room_of(target) + 1))
 
     def _go_through_door(self, door):
         self.stats["doors"] += 1
@@ -314,32 +340,50 @@ class GameManager:
     # ------------------------------------------------------------------
     # Player
     # ------------------------------------------------------------------
+    def _take_control(self):
+        """Any player action switches to Manual mode."""
+        self.play_mode = "manual"
+        self.stats["manual"] = True
+
     def manual_move(self, dr, dc):
         if self.game_over:
             return
-        self.stats["manual"] = True
+        self._take_control()
         r, c = self.agent.position
         target = (r + dr, c + dc)
         if target in self.world.get_adjacent(self.agent.position):
-            self._move_to(target, who=T("log.you"))
+            self._move_to(target, who=T("log.you"), auto_door=False)
         else:
             self.add_log(T("log.wall"))
         self._after_action()
 
     def manual_grab(self):
         if not self.game_over:
-            self.stats["manual"] = True
+            self._take_control()
             self._grab(who=T("log.you"))
             self._after_action()
 
     def manual_shoot(self, direction):
         if not self.game_over:
-            self.stats["manual"] = True
+            self._take_control()
             self._shoot(direction, who=T("log.you"))
             self._after_action()
 
     def manual_climb(self):
         if not self.game_over:
-            self.stats["manual"] = True
+            self._take_control()
             self._climb(who=T("log.you"))
             self._after_action()
+
+    def manual_enter_door(self):
+        if self.game_over:
+            return
+        self._take_control()
+        if self.agent.position in self.world.door_cells:
+            self._go_through_door(self.agent.position)
+        else:
+            self.add_log(T("log.no_door"))
+        self._after_action()
+
+    def at_door(self):
+        return self.agent.position in self.world.door_cells

@@ -25,6 +25,8 @@ class ControlPanel:
         x0, y0 = self.rect.x, self.rect.y
         row1, row2 = y0 + 40, y0 + 84
         playing = lambda: not gm.game_over
+        stepping = lambda: playing() and gm.play_mode == "step"
+        manual = lambda: playing() and gm.play_mode == "manual"
 
         # name, x, width
         self.groups = [(T("group.agent"), x0 + 24), (T("group.dungeon"), x0 + 308),
@@ -37,9 +39,10 @@ class ControlPanel:
 
         self.widgets = [
             # Agent
-            _hotkey(Button((ax, row1, 96, 32), T("btn.step"), gm.step_ai, kind="primary", enabled=playing), "Space"),
-            _hotkey(Switch((ax + 116, row1 + 5), T("sw.auto"), lambda: gm.auto_mode, self._set_auto, enabled=playing), "A"),
-            Segmented((ax, row2, 248, 32), [("slow", T("speed.slow")), ("normal", T("speed.normal")), ("fast", T("speed.fast"))],
+            _hotkey(Segmented((ax, row1, 248, 32), [(m, T(f"mode.{m}")) for m in gm.PLAY_MODES],
+                              lambda: gm.play_mode, gm.set_play_mode), "1  /  2  /  3"),
+            _hotkey(Button((ax, row2, 80, 32), T("btn.step"), gm.step_ai, kind="primary", enabled=stepping), "Space"),
+            Segmented((ax + 88, row2, 160, 32), [("slow", T("speed.slow")), ("normal", T("speed.normal")), ("fast", T("speed.fast"))],
                       lambda: gm.speed, lambda v: setattr(gm, "speed", v)),
             # Dungeon
             _hotkey(Button((mx, row1, 100, 32), T("btn.new_map"), lambda: gm.reset("random"), kind="primary"), "M"),
@@ -48,13 +51,15 @@ class ControlPanel:
             _hotkey(Stepper((mx + 108, row2, 120, 32), lambda: gm.num_rooms, gm.set_num_rooms,
                     World.MIN_ROOMS, World.MAX_ROOMS), "−  /  +"),
             # Manual control: inverted-T arrow pad
-            _hotkey(Button((hx + 36, row1, 32, 32), "", lambda: self._direction("UP"), icon="UP", enabled=playing), "↑"),
-            _hotkey(Button((hx, row2 - 8, 32, 32), "", lambda: self._direction("LEFT"), icon="LEFT", enabled=playing), "←"),
-            _hotkey(Button((hx + 36, row2 - 8, 32, 32), "", lambda: self._direction("DOWN"), icon="DOWN", enabled=playing), "↓"),
-            _hotkey(Button((hx + 72, row2 - 8, 32, 32), "", lambda: self._direction("RIGHT"), icon="RIGHT", enabled=playing), "→"),
+            _hotkey(Button((hx + 36, row1, 32, 32), "", lambda: self._direction("UP"), icon="UP", enabled=manual), "↑"),
+            _hotkey(Button((hx, row2 - 8, 32, 32), "", lambda: self._direction("LEFT"), icon="LEFT", enabled=manual), "←"),
+            _hotkey(Button((hx + 36, row2 - 8, 32, 32), "", lambda: self._direction("DOWN"), icon="DOWN", enabled=manual), "↓"),
+            _hotkey(Button((hx + 72, row2 - 8, 32, 32), "", lambda: self._direction("RIGHT"), icon="RIGHT", enabled=manual), "→"),
             _hotkey(Switch((hx + 124, row1 + 5), T("sw.shoot"), lambda: self.shoot_mode, self._set_shoot,
-                   enabled=lambda: playing() and gm.agent.has_arrow), "Shift + ↑←↓→"),
-            _hotkey(Button((hx + 124, row2 - 8, 176, 32), T("btn.grab"), gm.manual_grab, enabled=playing), "G"),
+                   enabled=lambda: manual() and gm.agent.has_arrow), "Shift + ↑←↓→"),
+            _hotkey(Button((hx + 124, row2 - 8, 86, 32), T("btn.grab"), gm.manual_grab, enabled=manual), "G"),
+            _hotkey(Button((hx + 214, row2 - 8, 86, 32), T("btn.door"), gm.manual_enter_door,
+                   enabled=lambda: manual() and gm.at_door()), "C"),
             # View
             _hotkey(Switch((vx, row1 + 2), T("sw.dark"), lambda: renderer.dark, renderer.set_dark, width=168), "T"),
             Switch((vx, row1 + 30), T("sw.sound"), lambda: sound_manager.is_enabled, self._set_sound, width=168),
@@ -70,9 +75,6 @@ class ControlPanel:
         self.rooms_label_pos = (mx, row2 + 16)
         self._hovered = None
         self._hover_since = 0
-
-    def _set_auto(self, value):
-        self.gm.auto_mode = value
 
     def _set_shoot(self, value):
         self.shoot_mode = value

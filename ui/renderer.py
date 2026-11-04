@@ -35,6 +35,8 @@ class Renderer:
         self._minimap_rooms = []
         self._shot_seen = None  # id of the arrow flight being animated
         self._shot_t0 = 0
+        self._banner_room = None  # room whose number is shown after the agent enters it
+        self._banner_t0 = 0
         self.assets = {}
         self._load_sprites()
 
@@ -104,7 +106,7 @@ class Renderer:
             img = pygame.image.load(path)
             img = img.subsurface(img.get_bounding_rect(min_alpha=10)).copy()
             w, h = img.get_size()
-            length, thick = self.CELL * 0.62, self.CELL * 0.62 * h / w
+            length, thick = self.CELL * 0.45, self.CELL * 0.45 * h / w
             for direction, angle in (("RIGHT", 0), ("UP", 90), ("LEFT", 180), ("DOWN", -90)):
                 size = (length, thick) if angle in (0, 180) else (thick, length)
                 self.assets[f"arrow_{direction}"] = self.p.scale_image(pygame.transform.rotate(img, angle), size)
@@ -123,6 +125,9 @@ class Renderer:
 
         agent_room = world.room_of(agent.position)
         follow_key = (id(world.rooms), agent_room)
+        # Same dungeon, new room, and not a fresh start: show the room number banner
+        if self._followed and self._followed[0] == follow_key[0] and self._followed[1] != agent_room and gm.steps:
+            self._banner_room, self._banner_t0 = agent_room, pygame.time.get_ticks()
         if follow_key != self._followed or (self.view_room is not None and self.view_room >= world.num_rooms):
             self.view_room = None
             self._followed = follow_key
@@ -135,6 +140,8 @@ class Renderer:
         self._draw_game(gm, room, agent_room)
         self._draw_minimap(gm, room)
         self._draw_info(gm)
+        if room == agent_room:
+            self._draw_room_banner(gm, agent_room)
         if controls:
             controls.draw(self.p)
         if gm.game_over:
@@ -184,6 +191,40 @@ class Renderer:
                 p.tag(label, pill_c, t["on_primary"], t["primary"], size=11, anchor="center", height=18)
 
         self._draw_arrow_flight(gm, room)
+
+    BANNER_IN_MS, BANNER_HOLD_MS, BANNER_OUT_MS = 150, 900, 450
+
+    def _draw_room_banner(self, gm, room):
+        """Big room number over the board for a moment after entering a room."""
+        if self._banner_room != room or gm.game_over:
+            return
+        elapsed = pygame.time.get_ticks() - self._banner_t0
+        fade_out_at = self.BANNER_IN_MS + self.BANNER_HOLD_MS
+        if elapsed > fade_out_at + self.BANNER_OUT_MS:
+            self._banner_room = None
+            return
+        if elapsed < self.BANNER_IN_MS:
+            alpha = elapsed / self.BANNER_IN_MS
+        elif elapsed > fade_out_at:
+            alpha = 1 - (elapsed - fade_out_at) / self.BANNER_OUT_MS
+        else:
+            alpha = 1.0
+
+        # Draw onto a transparent layer so the whole banner fades together
+        p, t = self.p, self.p.theme
+        screen = p.screen
+        layer = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        p.screen = layer
+        try:
+            box = pygame.Rect(0, 0, 200, 72)
+            box.center = (self.board_rect.centerx, self.board_rect.centery - round(8 * (1 - alpha)))
+            p.box(box.move(0, 4), t["border"], radius=12)
+            p.box(box, t["card"], radius=12, border=t["border"])
+            p.text(tr("room.title", n=room + 1), box.center, 28, t["text1"], "bold", anchor="center")
+        finally:
+            p.screen = screen
+        layer.set_alpha(round(255 * max(0.0, min(1.0, alpha))))
+        screen.blit(layer, (0, 0))
 
     ARROW_MS_PER_CELL = 90
     ARROW_HOLD_MS = 350  # arrow stays stuck in the wall / Wumpus, fading out
@@ -412,6 +453,8 @@ class Renderer:
             return tr("status.escaped"), t["warning"], t["warning_light"]
         if gm.auto_mode:
             return tr("status.auto"), t["primary"], t["primary_light"]
+        if gm.play_mode == "manual":
+            return tr("status.manual"), t["primary"], t["primary_light"]
         return tr("status.waiting"), t["text2"], t["fill2"]
 
     def _draw_info(self, gm):
