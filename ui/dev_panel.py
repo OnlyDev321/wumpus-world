@@ -159,7 +159,7 @@ class DevPanel:
             (tr("dev.think_max"), f"{res['think_ms_max']:.2f} ms", None),
             (tr("dev.risky"), str(res["risky"]), None),
             (tr("dev.doors"), str(res["doors"]), None),
-            (tr("dev.slain"), tr("dev.slain_yes", bonus=gm.WUMPUS_BONUS) if res["kills"]
+            (tr("dev.slain"), tr("dev.slain_yes") if res["kills"]
              else tr("dev.slain_missed") if res["shots"] else tr("dev.slain_no"),
              t["success"] if res["kills"] else None),
             (tr("dev.time"), f"{res['duration_s']:.1f} s", None),

@@ -14,7 +14,6 @@ class GameManager:
     """
 
     SPEEDS = {"slow": 700, "normal": 400, "fast": 150}
-    WUMPUS_BONUS = 500  # points for slaying the Wumpus
 
     def __init__(self, world, agent, sound_manager=None):
         self.world = world
@@ -274,9 +273,8 @@ class GameManager:
         self.last_shot = {"id": self._shot_seq, "start": start, "end": self.world.last_arrow_end,
                           "direction": direction, "hit": hit}
         if hit:
-            self.score += self.WUMPUS_BONUS
             self.stats["kills"] += 1
-            self.add_log(T("log.hit", who=who, dir=T(f"dir.{direction}"), bonus=self.WUMPUS_BONUS))
+            self.add_log(T("log.hit", who=who, dir=T(f"dir.{direction}"), ))
             if self.sound_manager:
                 self.sound_manager.play("scream")
         else:

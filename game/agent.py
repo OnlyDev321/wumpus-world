@@ -13,8 +13,6 @@ class Agent:
     the hazards and the gold are. It only reads layout data from `layout` (the World).
     """
 
-    GOLD_DETOUR = 4  # max extra steps to line up a sure shot while carrying the gold
-
     def __init__(self, layout, death_memory=None):
         self.layout = layout
         self.start_pos = layout.start_position
@@ -136,7 +134,7 @@ class Agent:
             return "DOWN" if tr > r else "UP"
         return None
 
-    def _plan_shot(self, safe, max_steps=None):
+    def _plan_shot(self, safe):
         """
         Returns a SHOOT action, a MOVE towards a firing spot, or None.
 
@@ -178,11 +176,11 @@ class Agent:
             direction = spots[self.position]
             self.last_action = f"SHOOT_{direction}"
             key = "th.shoot_sure" if len(targets) == 1 else "th.shoot_line"
-            self.thought_process = T(key, where=where, dir=T(f"dir.{direction}"), bonus=500)
+            self.thought_process = T(key, where=where, dir=T(f"dir.{direction}"))
             return {"type": "SHOOT", "direction": direction}
 
         path = self.find_shortest_path(set(spots), safe)
-        if path and (max_steps is None or len(path) <= max_steps):
+        if path:
             self.last_action = f"ALIGN_FOR_SHOT_{path[0]}"
             self.thought_process = T("th.align", where=where, cell=self.name(path[0]))
             return {"type": "MOVE", "to": path[0]}
@@ -215,12 +213,12 @@ class Agent:
             return {"type": "GRAB"}
 
         # 2. Gold in hand -> go to the exit (not back to the entrance).
-        #    A sure shot only a few steps away is still worth the +500 detour.
+        #    If the Wumpus blocks every safe way out, try to shoot it first.
         if self.has_gold:
-            action = self._plan_shot(safe, max_steps=self.GOLD_DETOUR) if is_wumpus_alive else None
+            action = self._go_to_exit(T("th.leave_gold"))
             if action:
                 return action
-            action = self._go_to_exit(T("th.leave_gold"))
+            action = self._plan_shot(safe) if is_wumpus_alive else None
             if action:
                 return action
 
@@ -233,7 +231,8 @@ class Agent:
                 self.thought_process = T("th.explore", target=self.name(path[-1]), cell=self.name(path[0]))
                 return {"type": "MOVE", "to": path[0]}
 
-        # 4. Safe exploration is done: hunt the Wumpus for +500 if a shot cannot miss
+        # 4. Safe exploration is done: before taking a risk, kill the Wumpus if a shot cannot miss
+        #    (its cells become safe to explore)
         if is_wumpus_alive:
             action = self._plan_shot(safe)
             if action:
