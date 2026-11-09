@@ -162,7 +162,7 @@ class Renderer:
         tags = []
         if world.room_of(world.start_position) == room:
             tags.append((tr("tag.entrance"), t["text2"], t["fill2"]))
-        if world.room_of(world.exit_position) == room:
+        if self._exit_visible(gm) and world.room_of(world.exit_position) == room:
             tags.append((tr("tag.exit"), t["success"], t["success_light"]))
         if room != agent_room:
             tags.append((tr("tag.preview"), t["primary"], t["primary_light"]))
@@ -359,13 +359,16 @@ class Renderer:
         if cell in world.door_cells:
             self._blit("door_small", center=rect.center)
 
+    def _exit_visible(self, gm):
+        return self.reveal_all or gm.agent.exit_pos is not None
+
     def _draw_markers(self, gm, cell, rect):
         p, t = self.p, self.p.theme
         world = gm.world
         if cell == world.start_position:
             p.tag(tr("cell.entrance"), (rect.x + 6, rect.bottom - 6), t["text2"], t["card"], size=10, anchor="bottomleft",
                   height=18, weight="bold")
-        if cell == world.exit_position:
+        if cell == world.exit_position and self._exit_visible(gm):
             p.tag(tr("cell.exit"), (rect.x + 6, rect.bottom - 6), t["on_primary"], t["success"], size=10, anchor="bottomleft",
                   height=18, weight="bold")
 
@@ -428,7 +431,7 @@ class Renderer:
                         p.circle(cr.center, dot + 1, t["danger"] if world.is_wumpus_alive else t["text4"])
                     elif cell == world.gold and not world.gold_taken:
                         p.circle(cr.center, dot + 1, t["gold"])
-                if cell == world.exit_position:
+                if cell == world.exit_position and self._exit_visible(gm):
                     p.box(cr.inflate(-2, -2), t["success"], radius=2)
                 elif cell == world.start_position:
                     p.box(cr.inflate(-2, -2), None, radius=2, border=t["text3"], border_width=2)

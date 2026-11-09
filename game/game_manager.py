@@ -241,7 +241,10 @@ class GameManager:
 
     def _perceive_here(self):
         percepts = self.world.get_percepts(self.agent.position)
+        knew_exit = self.agent.exit_pos is not None
         self.agent.perceive(percepts)
+        if not knew_exit and self.agent.exit_pos is not None:
+            self.add_log(T("log.found_exit", cell=self.name(self.agent.exit_pos)))
         self.agent.reason(self.world.is_wumpus_alive)
         if self.sound_manager:
             self.sound_manager.play_percepts(percepts)
@@ -303,9 +306,11 @@ class GameManager:
             if self.sound_manager:
                 self.sound_manager.play("door")
         elif pos == self.world.start_position:
-            self.add_log(T("log.sealed", cell=self.name(self.world.exit_position)))
+            self.add_log(T("log.sealed", cell=self.name(self.agent.exit_pos))
+                         if self.agent.exit_pos is not None else T("log.sealed_unknown"))
         else:
-            self.add_log(T("log.no_exit", cell=self.name(self.world.exit_position)))
+            self.add_log(T("log.no_exit", cell=self.name(self.agent.exit_pos))
+                         if self.agent.exit_pos is not None else T("log.no_exit_unknown"))
 
     # ------------------------------------------------------------------
     # AI

@@ -12,8 +12,8 @@ class Agent:
     Perception -> Memory -> Reasoning -> Decision Making -> Action.
     Enhanced with Episodic Memory to retain fatal failure causes across replays.
 
-    The agent knows the dungeon layout (rooms, doors, entrance and exit) but not where
-    the hazards and the gold are. It only reads layout data from `layout` (the World).
+    The agent knows rooms, doors and the entrance. The exit is learned only from
+    a percept on its cell; hazards and gold are also discovered through perception.
     """
 
     ALLOW_RISK = True
@@ -21,7 +21,7 @@ class Agent:
     def __init__(self, layout, death_memory=None):
         self.layout = layout
         self.start_pos = layout.start_position
-        self.exit_pos = layout.exit_position
+        self.exit_pos = None
         self.position = self.start_pos
         self.has_gold = False
         self.has_arrow = True
@@ -95,6 +95,8 @@ class Agent:
         """PERCEPTION: records the signals at the current cell."""
         self.visited.add(self.position)
         self.percepts_history[self.position] = set(current_percepts)
+        if "exit" in current_percepts:
+            self.exit_pos = self.position
 
     def reason(self, is_wumpus_alive=True):
         """REASONING: applies logic rules and death memory to update the Knowledge Base."""
@@ -212,6 +214,8 @@ class Agent:
 
     def _go_to_exit(self, reason_text, allow_shot=False):
         """Minimize total point cost to exit, preferring no shot on a tie."""
+        if self.exit_pos is None:
+            return None
         if self.position == self.exit_pos:
             self.last_action = "CLIMB_OUT"
             self.thought_process = reason_text
@@ -258,7 +262,7 @@ class Agent:
         # 4. No reachable safe exploration: compare opening a useful safe route
         #    with the expected death penalty of taking a frontier risk.
         shot_route = (self._plan_shot(safe, self.knowledge["pit_free"] - self.visited)
-                      if is_wumpus_alive and not self.has_gold else None)
+                      if is_wumpus_alive and (not self.has_gold or self.exit_pos is None) else None)
 
         # 5. No safe cells left: pick the lowest-risk cell on the whole explored frontier
         frontier_candidates = []

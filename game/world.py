@@ -262,8 +262,11 @@ class World:
         - stench: adjacent to Wumpus (when alive)
         - glitter: current cell contains Gold
         - scream: Wumpus killed on the previous action
+        - exit: current cell is the exit (not visible from adjacent cells)
         """
         percepts = set()
+        if pos == self.exit_position:
+            percepts.add("exit")
         adjacent = self.adj[pos]
 
         if any(nb in self.pits for nb in adjacent):
