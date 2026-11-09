@@ -20,7 +20,6 @@ class ControlPanel:
         self.gm = gm
         self.renderer = renderer
         self.sound = sound_manager
-        self.shoot_mode = False
 
         x0, y0 = self.rect.x, self.rect.y
         row1, row2 = y0 + 40, y0 + 84
@@ -36,6 +35,10 @@ class ControlPanel:
         mx = x0 + 308
         hx = x0 + 636
         vx = x0 + 968
+
+        self.door_button = _hotkey(Button(
+            (hx + 214, row2 - 8, 86, 32), T("btn.door"), gm.manual_enter_door,
+            enabled=lambda: manual() and (gm.at_door() or gm.at_exit())), "C")
 
         self.widgets = [
             # Agent
@@ -55,11 +58,8 @@ class ControlPanel:
             _hotkey(Button((hx, row2 - 8, 32, 32), "", lambda: self._direction("LEFT"), icon="LEFT", enabled=manual), "←"),
             _hotkey(Button((hx + 36, row2 - 8, 32, 32), "", lambda: self._direction("DOWN"), icon="DOWN", enabled=manual), "↓"),
             _hotkey(Button((hx + 72, row2 - 8, 32, 32), "", lambda: self._direction("RIGHT"), icon="RIGHT", enabled=manual), "→"),
-            _hotkey(Switch((hx + 124, row1 + 5), T("sw.shoot"), lambda: self.shoot_mode, self._set_shoot,
-                   enabled=lambda: manual() and gm.agent.has_arrow), "Shift + ↑←↓→"),
             _hotkey(Button((hx + 124, row2 - 8, 86, 32), T("btn.grab"), gm.manual_grab, enabled=manual), "G"),
-            _hotkey(Button((hx + 214, row2 - 8, 86, 32), T("btn.door"), gm.manual_enter_door,
-                   enabled=lambda: manual() and gm.at_door()), "C"),
+            self.door_button,
             # View
             _hotkey(Switch((vx, row1 + 2), T("sw.dark"), lambda: renderer.dark, renderer.set_dark, width=168), "T"),
             Switch((vx, row1 + 30), T("sw.sound"), lambda: sound_manager.is_enabled, self._set_sound, width=168),
@@ -73,11 +73,10 @@ class ControlPanel:
             info = renderer.info_rect
             self.widgets.append(_hotkey(Button((info.x + 100, info.y + 16, 92, 24), T("btn.analytics"), dev_panel.toggle), "F1"))
         self.rooms_label_pos = (mx, row2 + 16)
+        self.arrow_status_pos = (hx + 124, row1 + 8)
+        self.shoot_hint_pos = (hx + 124, row1 + 25)
         self._hovered = None
         self._hover_since = 0
-
-    def _set_shoot(self, value):
-        self.shoot_mode = value
 
     def _set_sound(self, value):
         self.sound.is_enabled = value
@@ -85,12 +84,8 @@ class ControlPanel:
             self.sound.stop_all()
 
     def _direction(self, direction):
-        if self.shoot_mode:
-            self.gm.manual_shoot(direction)
-            self.shoot_mode = False
-        else:
-            dr, dc = {"UP": (-1, 0), "DOWN": (1, 0), "LEFT": (0, -1), "RIGHT": (0, 1)}[direction]
-            self.gm.manual_move(dr, dc)
+        dr, dc = {"UP": (-1, 0), "DOWN": (1, 0), "LEFT": (0, -1), "RIGHT": (0, 1)}[direction]
+        self.gm.manual_move(dr, dc)
 
     def handle(self, event):
         consumed = False
@@ -103,12 +98,17 @@ class ControlPanel:
 
     def draw(self, p):
         t = p.theme
+        self.door_button.label = T("btn.exit" if self.gm.at_exit() else "btn.door")
         for i, (name, gx) in enumerate(self.groups):
             p.text(str(name).upper(), (gx, self.rect.y + 22), 11, t["text3"], "medium", anchor="midleft")
             if i:
                 x = gx - 20
                 p.line((x, self.rect.y + 20), (x, self.rect.bottom - 20), t["border"])
         p.text(T("label.rooms"), self.rooms_label_pos, 14, t["text2"], anchor="midleft")
+        has_arrow = self.gm.agent.has_arrow
+        p.text(T("arrow.ready" if has_arrow else "arrow.empty"), self.arrow_status_pos,
+               13, t["success"] if has_arrow else t["text3"], "medium", anchor="midleft")
+        p.text(T("arrow.hint"), self.shoot_hint_pos, 10, t["text3"], anchor="midleft")
         for w in self.widgets:
             w.draw(p)
         self._draw_tooltip(p)

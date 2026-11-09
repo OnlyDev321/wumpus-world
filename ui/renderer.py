@@ -175,10 +175,12 @@ class Renderer:
             rect = pygame.Rect(self.board_rect.x + lc * self.CELL, self.board_rect.y + lr * self.CELL, self.CELL, self.CELL)
             self._draw_cell(gm, cell, rect.inflate(-4, -4))
 
-        # Labels outside the board: which room each door leads to (only in reveal mode)
-        for a, b in (world.doors if self.reveal_all else ()):
+        # Traversed doors keep their destination labels even with Reveal map off.
+        for a, b in world.doors:
             for here, there in ((a, b), (b, a)):
                 if world.room_of(here) != room:
+                    continue
+                if not self.reveal_all and here not in gm.known_doors:
                     continue
                 lr, lc = world.local(here)
                 dr, dc = there[0] - here[0], there[1] - here[1]

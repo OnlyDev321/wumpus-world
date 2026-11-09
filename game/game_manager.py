@@ -28,6 +28,7 @@ class GameManager:
         self.play_mode = "step"  # "auto", "step" (AI one move at a time) or "manual" (the player)
         self.speed = "normal"
         self.logs = []
+        self.known_doors = set()  # both endpoints of doors traversed during this game
         self.agent_class = type(agent)
         self.history = []  # results of finished games in this session (for Analytics)
         self._reset_stats()
@@ -178,6 +179,7 @@ class GameManager:
         if self.sound_manager:
             self.sound_manager.stop_all()
         self.logs.clear()
+        self.known_doors.clear()
         self.last_shot = None
         self._reset_stats()
         self.initial_perceive()
@@ -186,7 +188,7 @@ class GameManager:
     # ------------------------------------------------------------------
     # Shared action handlers (used by both the AI and the player)
     # ------------------------------------------------------------------
-    def _move_to(self, pos, who="", auto_door=True):
+    def _move_to(self, pos, who="", auto_door=True, auto_exit=True):
         prev_room = self.world.room_of(self.agent.position)
         self.agent.position = pos
         self.world.agent_position = pos
@@ -207,9 +209,12 @@ class GameManager:
 
         self._perceive_here()
 
-        # Stepping onto the exit leaves the dungeon and ends the game
+        # The AI exits with gold; the player always confirms with C.
         if pos == self.world.exit_position:
-            self._climb(who)
+            if auto_exit and self.agent.has_gold:
+                self._climb(who)
+            elif not auto_exit:
+                self.add_log(T("log.at_exit"))
             return
 
         # Stepping onto a door from inside its room carries the AI through it.
@@ -225,6 +230,7 @@ class GameManager:
     def _go_through_door(self, door):
         self.stats["doors"] += 1
         target = self.world.door_partner(door)
+        self.known_doors.update((door, target))
         self.agent.position = target
         self.world.agent_position = target
         self.add_log(T("log.door", n=self.world.room_of(target) + 1))
@@ -281,9 +287,11 @@ class GameManager:
             self.add_log(T("log.miss", who=who, dir=T(f"dir.{direction}")))
         self.agent.reason(self.world.is_wumpus_alive)
 
-    def _climb(self, who=""):
+    def _climb(self, who="", allow_without_gold=False):
         pos = self.agent.position
         if pos == self.world.exit_position:
+            if not self.agent.has_gold and not allow_without_gold:
+                return
             self.game_over = True
             self.agent.escaped = True
             if self.agent.has_gold:
@@ -349,8 +357,9 @@ class GameManager:
         self._take_control()
         r, c = self.agent.position
         target = (r + dr, c + dc)
-        if target in self.world.get_adjacent(self.agent.position):
-            self._move_to(target, who=T("log.you"), auto_door=False)
+        if (target in self.world.get_adjacent(self.agent.position)
+                and self.world.room_of(target) == self.world.room_of(self.agent.position)):
+            self._move_to(target, who=T("log.you"), auto_door=False, auto_exit=False)
         else:
             self.add_log(T("log.wall"))
         self._after_action()
@@ -370,14 +379,16 @@ class GameManager:
     def manual_climb(self):
         if not self.game_over:
             self._take_control()
-            self._climb(who=T("log.you"))
+            self._climb(who=T("log.you"), allow_without_gold=True)
             self._after_action()
 
     def manual_enter_door(self):
         if self.game_over:
             return
         self._take_control()
-        if self.agent.position in self.world.door_cells:
+        if self.at_exit():
+            self._climb(who=T("log.you"), allow_without_gold=True)
+        elif self.agent.position in self.world.door_cells:
             self._go_through_door(self.agent.position)
         else:
             self.add_log(T("log.no_door"))
@@ -385,3 +396,6 @@ class GameManager:
 
     def at_door(self):
         return self.agent.position in self.world.door_cells
+
+    def at_exit(self):
+        return self.agent.position == self.world.exit_position

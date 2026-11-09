@@ -202,9 +202,8 @@ class Agent:
     def decide_next_action(self, is_wumpus_alive=True):
         """DECISION: selects the next action from current knowledge and goals."""
         current_percepts = self.percepts_history.get(self.position, set())
-        # The exit ends the game as soon as it is stepped on, so it is kept out of
-        # exploration and only used when the agent decides to leave (_go_to_exit).
-        safe = self.knowledge["safe_cells"] - {self.exit_pos}
+        # Without gold, the exit is an ordinary cell that can be explored or crossed.
+        safe = self.knowledge["safe_cells"]
 
         # 1. Glitter -> grab the gold
         if "glitter" in current_percepts and not self.has_gold:
@@ -242,7 +241,7 @@ class Agent:
         frontier_candidates = []
         for v_cell in self.visited:
             for nb in self.neighbors(v_cell):
-                if nb in self.visited or nb == self.exit_pos:
+                if nb in self.visited:
                     continue
                 risk = calculate_cell_risk(nb, self.knowledge)
                 if risk >= 10:  # confirmed hazard
@@ -276,11 +275,7 @@ class Agent:
                                      risk=f"{lowest_risk:.0%}", dist=dist)
             return {"type": "MOVE", "to": path_to_bridge[0]}
 
-        # 6. Nothing left to explore: leave through the exit without the gold
-        action = self._go_to_exit(T("th.leave_nogold"))
-        if action:
-            return action
-
+        # 6. No way to continue the search or reach the goal: report failure.
         self.last_action = "TRAPPED"
         self.thought_process = T("th.trapped")
         return {"type": "PASS"}
