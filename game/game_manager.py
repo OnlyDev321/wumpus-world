@@ -3,6 +3,7 @@ import time
 from game.world import World
 from game.algorithms import algorithm_name
 from game.i18n import T, Join, algorithm_label
+from game.scoring import MOVE_COST, SHOT_COST, DEATH_COST, GOLD_REWARD
 
 
 class GameManager:
@@ -193,7 +194,7 @@ class GameManager:
         self.agent.position = pos
         self.world.agent_position = pos
         self.steps += 1
-        self.score -= 1
+        self.score -= MOVE_COST
         self.add_log(T("log.moved", who=who, cell=self.name(pos)))
 
         if pos in self.world.pits:
@@ -249,7 +250,7 @@ class GameManager:
         self.game_over = True
         self.agent.is_alive = False
         self.death_reason = reason
-        self.score -= 1000
+        self.score -= DEATH_COST
         self.agent.record_death(reason, self.agent.position)
         self.add_log(message)
         if self.sound_manager:
@@ -259,7 +260,7 @@ class GameManager:
         if self.agent.position == self.world.gold and not self.world.gold_taken:
             self.world.gold_taken = True
             self.agent.has_gold = True
-            self.score += 1000
+            self.score += GOLD_REWARD
             self.add_log(T("log.grab", who=who))
             if self.sound_manager:
                 self.sound_manager.play("gold")
@@ -272,7 +273,7 @@ class GameManager:
             return
         self.agent.has_arrow = False
         self.stats["shots"] += 1
-        self.score -= 10
+        self.score -= SHOT_COST
         start = self.agent.position
         hit = self.world.shoot_arrow(start, direction)
         self._shot_seq += 1

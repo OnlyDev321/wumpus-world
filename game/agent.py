@@ -1,4 +1,7 @@
-from collections import deque
+from heapq import heappop, heappush
+from itertools import count
+
+from game.scoring import MOVE_COST, SHOT_COST, DEATH_COST
 from game.rules import deduce_knowledge, calculate_cell_risk
 from game.i18n import T, Join
 
@@ -12,6 +15,8 @@ class Agent:
     The agent knows the dungeon layout (rooms, doors, entrance and exit) but not where
     the hazards and the gold are. It only reads layout data from `layout` (the World).
     """
+
+    ALLOW_RISK = True
 
     def __init__(self, layout, death_memory=None):
         self.layout = layout
@@ -102,24 +107,75 @@ class Agent:
             death_memory=self.death_memory,
         )
 
-    def find_shortest_path(self, target_cells, allowed_cells):
-        """
-        BFS from the current position to any cell in `target_cells`,
-        stepping only through `allowed_cells`. Returns the steps after the current cell.
-        """
-        if not target_cells:
-            return None
+    def _route_to(self, goals, safe, allow_shot=False):
+        """Cheapest known-safe action sequence, including positioning and one sure shot.
 
-        queue = deque([(self.position, [self.position])])
-        seen = {self.position}
+        Search state includes whether the arrow has been fired. After a guaranteed
+        kill, only pit-free cells become traversable. No hidden hazards are read.
+        Door entry teleports in the same MOVE, just as GameManager executes it.
+        Equal-cost routes prefer preserving the arrow.
+        """
+        goals = set(goals)
+        if not goals:
+            return None
+        safe = set(safe) | {self.position}
+        after_shot = (safe | self.knowledge["pit_free"]) - self.knowledge["confirmed_pits"]
+        targets = ({self.knowledge["confirmed_wumpus"]}
+                   if self.knowledge["confirmed_wumpus"] is not None
+                   else set(self.knowledge["possible_wumpus"]))
+        can_shoot = allow_shot and self.has_arrow and bool(targets)
+        serial = count()
+        queue = [(0, 0, next(serial), self.position, [])]
+        best = {(self.position, 0): 0}
         while queue:
-            current, path = queue.popleft()
-            if current in target_cells and current != self.position:
-                return path[1:]
-            for nb in self.neighbors(current):
-                if nb in allowed_cells and nb not in seen:
-                    seen.add(nb)
-                    queue.append((nb, path + [nb]))
+            cost, shots, _, pos, actions = heappop(queue)
+            if cost != best.get((pos, shots)):
+                continue
+            if pos in goals:
+                return cost, actions, pos
+            allowed = after_shot if shots else safe
+            options = []
+            for target in self.neighbors(pos):
+                if target not in allowed:
+                    continue
+                landing = target
+                if (target in self.layout.door_cells
+                        and self.layout.room_of(target) == self.layout.room_of(pos)):
+                    # Door endpoints are protected by the dungeon rules, and entry
+                    # carries us through even before the other side is perceived.
+                    landing = self.layout.door_partner(target)
+                options.append((MOVE_COST, shots, landing, {"type": "MOVE", "to": target}))
+            if can_shoot and not shots:
+                direction = self._sure_shot_direction(pos, targets)
+                if direction:
+                    options.append((SHOT_COST, 1, pos, {"type": "SHOOT", "direction": direction}))
+            for extra, next_shots, landing, action in options:
+                next_cost = cost + extra
+                state = (landing, next_shots)
+                if next_cost < best.get(state, float("inf")):
+                    best[state] = next_cost
+                    heappush(queue, (next_cost, next_shots, next(serial), landing, actions + [action]))
+        return None
+
+    def find_shortest_path(self, target_cells, allowed_cells):
+        """Fewest MOVE actions, counting automatic door crossings correctly."""
+        route = self._route_to(set(target_cells) - {self.position}, allowed_cells)
+        return [action["to"] for action in route[1]] if route else None
+
+    def _sure_shot_direction(self, pos, targets):
+        if any(self.layout.room_of(t) != self.layout.room_of(pos) for t in targets):
+            return None
+        r, c = pos
+        if all(t[0] == r for t in targets):
+            if all(t[1] > c for t in targets):
+                return "RIGHT"
+            if all(t[1] < c for t in targets):
+                return "LEFT"
+        if all(t[1] == c for t in targets):
+            if all(t[0] > r for t in targets):
+                return "DOWN"
+            if all(t[0] < r for t in targets):
+                return "UP"
         return None
 
     def get_shoot_direction(self, target_pos):
@@ -134,69 +190,41 @@ class Agent:
             return "DOWN" if tr > r else "UP"
         return None
 
-    def _plan_shot(self, safe):
-        """
-        Returns a SHOOT action, a MOVE towards a firing spot, or None.
-
-        A shot is taken only when it cannot miss: the Wumpus is confirmed, or every cell
-        it could be in lies on one straight line inside one room, all on the same side
-        of a safe firing spot (the arrow flies through all of them).
-        """
-        if not self.has_arrow:
-            return None
-        kb = self.knowledge
-        targets = {kb["confirmed_wumpus"]} if kb.get("confirmed_wumpus") else set(kb["possible_wumpus"])
-        if not targets or len(targets) > 3:
-            return None
-        rooms = {self.layout.room_of(t) for t in targets}
-        if len(rooms) != 1:
-            return None
-        room = rooms.pop()
-
-        spots = {}
-        for pos in safe | {self.position}:
-            if self.layout.room_of(pos) != room or pos in targets:
-                continue
-            r, c = pos
-            if all(t[0] == r for t in targets):
-                if all(t[1] > c for t in targets):
-                    spots[pos] = "RIGHT"
-                elif all(t[1] < c for t in targets):
-                    spots[pos] = "LEFT"
-            if pos not in spots and all(t[1] == c for t in targets):
-                if all(t[0] > r for t in targets):
-                    spots[pos] = "DOWN"
-                elif all(t[0] < r for t in targets):
-                    spots[pos] = "UP"
-        if not spots:
-            return None
-
-        where = ", ".join(self.name(t) for t in sorted(targets))
-        if self.position in spots:
-            direction = spots[self.position]
-            self.last_action = f"SHOOT_{direction}"
-            key = "th.shoot_sure" if len(targets) == 1 else "th.shoot_line"
-            self.thought_process = T(key, where=where, dir=T(f"dir.{direction}"))
-            return {"type": "SHOOT", "direction": direction}
-
-        path = self.find_shortest_path(set(spots), safe)
-        if path:
-            self.last_action = f"ALIGN_FOR_SHOT_{path[0]}"
-            self.thought_process = T("th.align", where=where, cell=self.name(path[0]))
-            return {"type": "MOVE", "to": path[0]}
+    def _plan_shot(self, safe, goals):
+        """Plan a kill only when it opens a pit-free route to a useful goal."""
+        route = self._route_to(goals, safe, allow_shot=True)
+        if route and any(action["type"] == "SHOOT" for action in route[1]):
+            return route
         return None
 
-    def _go_to_exit(self, reason_text):
-        """Climb out if standing on the exit, otherwise step along a safe path to it."""
+    def _follow_shot_route(self, route):
+        cost, actions, goal = route
+        action = actions[0]
+        if action["type"] == "SHOOT":
+            self.last_action = f"SHOOT_{action['direction']}"
+            self.thought_process = T("th.shoot_needed", cell=self.name(goal), cost=cost,
+                                     dir=T(f"dir.{action['direction']}"))
+        else:
+            self.last_action = f"ALIGN_FOR_SHOT_{action['to']}"
+            self.thought_process = T("th.align_needed", cell=self.name(action["to"]),
+                                     goal=self.name(goal), cost=cost)
+        return action
+
+    def _go_to_exit(self, reason_text, allow_shot=False):
+        """Minimize total point cost to exit, preferring no shot on a tie."""
         if self.position == self.exit_pos:
             self.last_action = "CLIMB_OUT"
             self.thought_process = reason_text
             return {"type": "CLIMB"}
-        path = self.find_shortest_path({self.exit_pos}, self.knowledge["safe_cells"] | {self.exit_pos})
-        if path:
-            self.last_action = f"TO_EXIT_{path[0]}"
-            self.thought_process = T("th.to_exit", exit=self.name(self.exit_pos), cell=self.name(path[0]))
-            return {"type": "MOVE", "to": path[0]}
+        route = self._route_to({self.exit_pos}, self.knowledge["safe_cells"] | {self.exit_pos},
+                               allow_shot=allow_shot)
+        if route:
+            if any(action["type"] == "SHOOT" for action in route[1]):
+                return self._follow_shot_route(route)
+            action = route[1][0]
+            self.last_action = f"TO_EXIT_{action['to']}"
+            self.thought_process = T("th.to_exit", exit=self.name(self.exit_pos), cell=self.name(action["to"]))
+            return action
         return None
 
     def decide_next_action(self, is_wumpus_alive=True):
@@ -212,12 +240,9 @@ class Agent:
             return {"type": "GRAB"}
 
         # 2. Gold in hand -> go to the exit (not back to the entrance).
-        #    If the Wumpus blocks every safe way out, try to shoot it first.
+        #    Compare walking versus a guaranteed kill, including all point costs.
         if self.has_gold:
-            action = self._go_to_exit(T("th.leave_gold"))
-            if action:
-                return action
-            action = self._plan_shot(safe) if is_wumpus_alive else None
+            action = self._go_to_exit(T("th.leave_gold"), allow_shot=is_wumpus_alive)
             if action:
                 return action
 
@@ -230,16 +255,14 @@ class Agent:
                 self.thought_process = T("th.explore", target=self.name(path[-1]), cell=self.name(path[0]))
                 return {"type": "MOVE", "to": path[0]}
 
-        # 4. Safe exploration is done: before taking a risk, kill the Wumpus if a shot cannot miss
-        #    (its cells become safe to explore)
-        if is_wumpus_alive:
-            action = self._plan_shot(safe)
-            if action:
-                return action
+        # 4. No reachable safe exploration: compare opening a useful safe route
+        #    with the expected death penalty of taking a frontier risk.
+        shot_route = (self._plan_shot(safe, self.knowledge["pit_free"] - self.visited)
+                      if is_wumpus_alive and not self.has_gold else None)
 
         # 5. No safe cells left: pick the lowest-risk cell on the whole explored frontier
         frontier_candidates = []
-        for v_cell in self.visited:
+        for v_cell in (self.visited if self.ALLOW_RISK else ()):
             for nb in self.neighbors(v_cell):
                 if nb in self.visited:
                     continue
@@ -256,7 +279,11 @@ class Agent:
                 frontier_candidates.append((risk, dist, nb, v_cell, path_to_bridge))
 
         if frontier_candidates:
-            frontier_candidates.sort(key=lambda item: (item[0], item[1]))
+            frontier_candidates.sort(key=lambda item: (item[0] * DEATH_COST + item[1] * MOVE_COST,
+                                                        item[0], item[1], item[2]))
+            risk, distance = frontier_candidates[0][:2]
+            if shot_route and shot_route[0] < risk * DEATH_COST + distance * MOVE_COST:
+                return self._follow_shot_route(shot_route)
             lowest_risk, dist, target, bridge, path_to_bridge = frontier_candidates[0]
 
             if bridge == self.position:
@@ -274,6 +301,9 @@ class Agent:
             self.thought_process = T("th.frontier", cell=self.name(path_to_bridge[0]), target=self.name(target),
                                      risk=f"{lowest_risk:.0%}", dist=dist)
             return {"type": "MOVE", "to": path_to_bridge[0]}
+
+        if shot_route:
+            return self._follow_shot_route(shot_route)
 
         # 6. No way to continue the search or reach the goal: report failure.
         self.last_action = "TRAPPED"

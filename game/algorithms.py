@@ -19,16 +19,12 @@ from game.i18n import T
 class SafeOnlyAgent(Agent):
     """Baseline: never steps into an unproven cell. Gives up when nothing safe is left."""
 
+    ALLOW_RISK = False
+
     def decide_next_action(self, is_wumpus_alive=True):
         action = super().decide_next_action(is_wumpus_alive)
-        if self.last_action.startswith(("RISKY_MOVE", "NAVIGATE_TO_FRONTIER")):
-            if self.has_gold:
-                leave = self._go_to_exit(T("th.leave_gold"))
-                if leave:
-                    return leave
-            self.last_action = "TRAPPED"
+        if action["type"] == "PASS":
             self.thought_process = T("th.safe_giveup")
-            return {"type": "PASS"}
         return action
 
 
