@@ -1,0 +1,254 @@
+{
+  ".claude/settings.json": {
+    "mtime": 1794361592.43333,
+    "seen": 1794361603.5678,
+    "ast_hash": "0a0ef578e59e2bb38c69f1dcb49a0e1a",
+    "semantic_hash": ""
+  },
+  "board.py": {
+    "mtime": 1793856153.9515648,
+    "seen": 1794361603.567803,
+    "ast_hash": "7b69659e69502128584b0e46a350580e",
+    "semantic_hash": ""
+  },
+  "game/agent.py": {
+    "mtime": 1793857603.627913,
+    "seen": 1794361603.5678048,
+    "ast_hash": "7b0173739c2a71b094ccc48a07e8ecc1",
+    "semantic_hash": ""
+  },
+  "game/algorithms.py": {
+    "mtime": 1793856140.176048,
+    "seen": 1794361603.567806,
+    "ast_hash": "43a48c00981269bdca6db5caebcaf459",
+    "semantic_hash": ""
+  },
+  "game/benchmark.py": {
+    "mtime": 1793856140.176807,
+    "seen": 1794361603.567806,
+    "ast_hash": "79b882ea2c34e062062c8d1b8b55de55",
+    "semantic_hash": ""
+  },
+  "game/game_manager.py": {
+    "mtime": 1793857603.6269212,
+    "seen": 1794361603.567807,
+    "ast_hash": "df0c3f3355e3136c3765945aaa7e01fe",
+    "semantic_hash": ""
+  },
+  "game/i18n.py": {
+    "mtime": 1793857603.6292634,
+    "seen": 1794361603.567808,
+    "ast_hash": "ec5e85b48aa5687aab1e31f97f489c4b",
+    "semantic_hash": ""
+  },
+  "game/rules.py": {
+    "mtime": 1793856140.1786506,
+    "seen": 1794361603.567809,
+    "ast_hash": "224964ef32889320a7066f94d1c5c3c4",
+    "semantic_hash": ""
+  },
+  "game/world.py": {
+    "mtime": 1793856140.1790934,
+    "seen": 1794361603.567809,
+    "ast_hash": "45ac742d888f7948c75601ed403e20b4",
+    "semantic_hash": ""
+  },
+  "main.py": {
+    "mtime": 1793856140.1795485,
+    "seen": 1794361603.56781,
+    "ast_hash": "cc5f4348287201bd7014f4a5bcf75405",
+    "semantic_hash": ""
+  },
+  "ui/controls.py": {
+    "mtime": 1793856140.180582,
+    "seen": 1794361603.567811,
+    "ast_hash": "db5e2da2501a1c8e952baf49686a81dd",
+    "semantic_hash": ""
+  },
+  "ui/dev_panel.py": {
+    "mtime": 1793857603.6294556,
+    "seen": 1794361603.567811,
+    "ast_hash": "452e1cf48fd4fa696fbe522c2aaf82f0",
+    "semantic_hash": ""
+  },
+  "ui/painter.py": {
+    "mtime": 1793856140.1814487,
+    "seen": 1794361603.5678122,
+    "ast_hash": "9c739cb66c18c1e19b398c346162b164",
+    "semantic_hash": ""
+  },
+  "ui/paths.py": {
+    "mtime": 1793856140.181715,
+    "seen": 1794361603.5678132,
+    "ast_hash": "c4e9cbac12400e4ac856a6617ad9f0a5",
+    "semantic_hash": ""
+  },
+  "ui/renderer.py": {
+    "mtime": 1793856140.1820824,
+    "seen": 1794361603.5678132,
+    "ast_hash": "7aa40cf1bfb85c65ca0d9b6b8be71ca3",
+    "semantic_hash": ""
+  },
+  "ui/sound_manager.py": {
+    "mtime": 1793856140.182525,
+    "seen": 1794361603.5678139,
+    "ast_hash": "e4bf4a3d6b9c89cae9ee8fee8f7335da",
+    "semantic_hash": ""
+  },
+  "ui/theme.py": {
+    "mtime": 1793856140.1827693,
+    "seen": 1794361603.5678139,
+    "ast_hash": "1c5a3f80e018794ae1148a18b55d473a",
+    "semantic_hash": ""
+  },
+  "ui/widgets.py": {
+    "mtime": 1793856140.1831648,
+    "seen": 1794361603.5678148,
+    "ast_hash": "48fb2b63e9c8817468469eb98796d6fe",
+    "semantic_hash": ""
+  },
+  ".claude/CLAUDE.md": {
+    "mtime": 1794361592.4328547,
+    "seen": 1794361603.567816,
+    "ast_hash": "9b31786b637be3c13978bec4c2330752",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1794361592.433172,
+    "seen": 1794361603.567816,
+    "ast_hash": "67d88e9d0760c3ba54c75dfd9551c1c5",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1793857603.6303089,
+    "seen": 1794361603.567817,
+    "ast_hash": "b6d2d16cedfb03ab84daedddfa20f43f",
+    "semantic_hash": ""
+  },
+  "assets/fonts/LICENSE.txt": {
+    "mtime": 1793856140.147625,
+    "seen": 1794361603.567818,
+    "ast_hash": "eb9bdd8a4abced4876ee0e2a99a62938",
+    "semantic_hash": ""
+  },
+  "requirements.txt": {
+    "mtime": 1793856140.1799657,
+    "seen": 1794361603.567819,
+    "ast_hash": "242f5977d6e3b637ddd0860f8eb9c477",
+    "semantic_hash": ""
+  },
+  "assets/arrow.png": {
+    "mtime": 1793677864.2634406,
+    "seen": 1794361603.567819,
+    "ast_hash": "f079c3a9c5fedadd7e6d27b0cbe12bea",
+    "semantic_hash": ""
+  },
+  "assets/breeze.png": {
+    "mtime": 1793677864.2637453,
+    "seen": 1794361603.56782,
+    "ast_hash": "e6deed36a31057176fc5c6c2287240a1",
+    "semantic_hash": ""
+  },
+  "assets/door.png": {
+    "mtime": 1793677864.2645345,
+    "seen": 1794361603.56782,
+    "ast_hash": "620e78a5c20d9ec7a4c006015addaa5c",
+    "semantic_hash": ""
+  },
+  "assets/floor.png": {
+    "mtime": 1793677864.2648053,
+    "seen": 1794361603.567821,
+    "ast_hash": "9ad5ceb87bb7e31bd44362d9d515b734",
+    "semantic_hash": ""
+  },
+  "assets/giltter.png": {
+    "mtime": 1793677864.265082,
+    "seen": 1794361603.567822,
+    "ast_hash": "6c1f355d522e679d2e030d26b917d31e",
+    "semantic_hash": ""
+  },
+  "assets/gold.png": {
+    "mtime": 1793677864.2652946,
+    "seen": 1794361603.567822,
+    "ast_hash": "b924ec3ceb35b17ab79dbb965f968afa",
+    "semantic_hash": ""
+  },
+  "assets/hero.png": {
+    "mtime": 1793677864.265469,
+    "seen": 1794361603.5678232,
+    "ast_hash": "a8878e925dd37ea9b14c51e748569060",
+    "semantic_hash": ""
+  },
+  "assets/pit.png": {
+    "mtime": 1793677864.2656307,
+    "seen": 1794361603.5678232,
+    "ast_hash": "249975c6601fcb173cd60478b822b73c",
+    "semantic_hash": ""
+  },
+  "assets/scream.png": {
+    "mtime": 1793677864.26577,
+    "seen": 1794361603.567824,
+    "ast_hash": "c2565973a77077c1af97dcd4b27fe7be",
+    "semantic_hash": ""
+  },
+  "assets/stench.png": {
+    "mtime": 1793677864.2693975,
+    "seen": 1794361603.5678248,
+    "ast_hash": "f1d165dd5f04abc431dd6f0b6f7b12c9",
+    "semantic_hash": ""
+  },
+  "assets/wumpus.png": {
+    "mtime": 1793677864.2695441,
+    "seen": 1794361603.5678248,
+    "ast_hash": "34c952c43c36e5b87303e0cbfb421f7d",
+    "semantic_hash": ""
+  },
+  "assets/sounds/breeze.wav": {
+    "mtime": 1793677864.2661865,
+    "seen": 1794361603.567826,
+    "ast_hash": "5e22d85b6ab9855d48644d64e0be63ab",
+    "semantic_hash": ""
+  },
+  "assets/sounds/door.wav": {
+    "mtime": 1793677864.266557,
+    "seen": 1794361603.567826,
+    "ast_hash": "86a4db4bd506ddb3d36e72e4a0d4f990",
+    "semantic_hash": ""
+  },
+  "assets/sounds/glitter.wav": {
+    "mtime": 1793677864.2668586,
+    "seen": 1794361603.567827,
+    "ast_hash": "a5b06e65720cb015ede60f11999e3fb5",
+    "semantic_hash": ""
+  },
+  "assets/sounds/gold.wav": {
+    "mtime": 1793677864.2671137,
+    "seen": 1794361603.567828,
+    "ast_hash": "47f1dc88804aa68769ef66ec1bfa5b97",
+    "semantic_hash": ""
+  },
+  "assets/sounds/pit.wav": {
+    "mtime": 1793677864.2674952,
+    "seen": 1794361603.567828,
+    "ast_hash": "ee0de0491105fa706cf8725b37aae4af",
+    "semantic_hash": ""
+  },
+  "assets/sounds/scream.wav": {
+    "mtime": 1793677864.2679513,
+    "seen": 1794361603.567829,
+    "ast_hash": "0f574de958cbd7ab78cc06daf3777382",
+    "semantic_hash": ""
+  },
+  "assets/sounds/stench.wav": {
+    "mtime": 1793677864.268282,
+    "seen": 1794361603.56783,
+    "ast_hash": "39e54f7cab940139ef450e70cb40b781",
+    "semantic_hash": ""
+  },
+  "assets/sounds/wumpus.wav": {
+    "mtime": 1793677864.268655,
+    "seen": 1794361603.567831,
+    "ast_hash": "08ed679394649b938af3533732086e5c",
+    "semantic_hash": ""
+  }
+}
