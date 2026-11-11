@@ -289,6 +289,18 @@ class GameManager:
                 self.sound_manager.play("scream")
         else:
             self.add_log(T("log.miss", who=who, dir=T(f"dir.{direction}")))
+            # Deduce Wumpus-Free cells along the flight path of the missed shot
+            dr, dc = {"UP": (-1, 0), "DOWN": (1, 0), "LEFT": (0, -1), "RIGHT": (0, 1)}[direction]
+            missed_cells = set()
+            curr = (start[0] + dr, start[1] + dc)
+            end = self.world.last_arrow_end
+            while True:
+                missed_cells.add(curr)
+                if curr == end:
+                    break
+                curr = (curr[0] + dr, curr[1] + dc)
+            if hasattr(self.agent, "record_missed_shot"):
+                self.agent.record_missed_shot(missed_cells)
         self.agent.reason(self.world.is_wumpus_alive)
 
     def _climb(self, who="", allow_without_gold=False):

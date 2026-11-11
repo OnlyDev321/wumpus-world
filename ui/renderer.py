@@ -318,6 +318,7 @@ class Renderer:
 
         if cell == world.gold and not world.gold_taken:
             self._blit("gold", center=rect.center)
+            self._blit("glitter", center=rect.center)
 
         self._draw_percepts(world, cell, rect)
 

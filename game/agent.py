@@ -38,6 +38,7 @@ class Agent:
         # In-episode memory
         self.visited = set()
         self.percepts_history = {}
+        self.missed_shots = set()
         start = self.start_pos
         self.knowledge = {
             "safe_cells": {start} - self.death_memory["pits"],
@@ -98,6 +99,10 @@ class Agent:
         if "exit" in current_percepts:
             self.exit_pos = self.position
 
+    def record_missed_shot(self, cells):
+        """Records cells traversed by an arrow that missed, guaranteeing they contain no Wumpus."""
+        self.missed_shots.update(cells)
+
     def reason(self, is_wumpus_alive=True):
         """REASONING: applies logic rules and death memory to update the Knowledge Base."""
         self.knowledge = deduce_knowledge(
@@ -107,6 +112,7 @@ class Agent:
             self.percepts_history,
             is_wumpus_alive,
             death_memory=self.death_memory,
+            missed_shots=self.missed_shots,
         )
 
     def _route_to(self, goals, safe, allow_shot=False):
@@ -309,7 +315,20 @@ class Agent:
         if shot_route:
             return self._follow_shot_route(shot_route)
 
-        # 6. No way to continue the search or reach the goal: report failure.
+        # 6. Deadlock encountered: try to retreat safely to known exit instead of giving up
+        if self.exit_pos is not None:
+            if self.position == self.exit_pos:
+                self.last_action = "CLIMB_OUT"
+                self.thought_process = T("th.leave_deadlock")
+                return {"type": "CLIMB"}
+            retreat_path = self.find_shortest_path({self.exit_pos}, safe | {self.exit_pos})
+            if retreat_path:
+                next_cell = retreat_path[0]
+                self.last_action = f"RETREAT_TO_{next_cell}"
+                self.thought_process = T("th.retreat_exit", exit=self.name(self.exit_pos), cell=self.name(next_cell))
+                return {"type": "MOVE", "to": next_cell}
+
+        # 7. No way to continue the search or reach the goal: report failure.
         self.last_action = "TRAPPED"
         self.thought_process = T("th.trapped")
         return {"type": "PASS"}

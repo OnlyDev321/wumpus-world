@@ -6,7 +6,7 @@ Propositional Logic Reasoning System for Wumpus World AI.
 PIT_PRIOR = 0.15
 
 
-def deduce_knowledge(cells, neighbors, visited, percepts_history, is_wumpus_alive=True, death_memory=None):
+def deduce_knowledge(cells, neighbors, visited, percepts_history, is_wumpus_alive=True, death_memory=None, missed_shots=None):
     """
     Deduces knowledge based on observation history and cross-episode death memory:
     - cells: all cells of the dungeon
@@ -15,6 +15,7 @@ def deduce_knowledge(cells, neighbors, visited, percepts_history, is_wumpus_aliv
     - percepts_history: dict {pos: set(percepts)}
     - is_wumpus_alive: bool
     - death_memory: optional dict containing {"pits": set(), "wumpus": tuple or None}
+    - missed_shots: optional set of cells traversed by missed arrow shots (guaranteed Wumpus-Free)
 
     Returns:
     - safe_cells: set of cells definitively SAFE
@@ -45,6 +46,8 @@ def deduce_knowledge(cells, neighbors, visited, percepts_history, is_wumpus_aliv
 
     # 2. Cells guaranteed to be free of Wumpus (Wumpus-Free)
     wumpus_free = set(visited)
+    if missed_shots:
+        wumpus_free |= set(missed_shots)
     if not is_wumpus_alive:
         # If Wumpus is dead, the entire world is free of Wumpus threat
         wumpus_free = set(all_cells)
