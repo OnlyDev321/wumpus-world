@@ -1,7 +1,8 @@
 import pygame
 
 from game.world import World
-from game.i18n import T, LANGUAGES, get_language, set_language
+from game.algorithms import ALGORITHMS
+from game.i18n import T, LANGUAGES, get_language, set_language, algorithm_label
 from ui.widgets import Button, Switch, Segmented, Stepper
 
 TOOLTIP_DELAY_MS = 400
@@ -67,6 +68,11 @@ class ControlPanel:
             # "Reveal map" sits in the room card header, next to the board it changes
             _hotkey(Switch((renderer.game_rect.right - 24 - 136, renderer.game_rect.y + 17), T("sw.reveal"),
                    lambda: renderer.reveal_all, lambda v: setattr(renderer, "reveal_all", v), width=136), "Tab"),
+            # Algorithm switcher: sits in the Dungeon map header
+            Segmented((renderer.map_rect.right - 20 - 200, renderer.map_rect.y + 14, 200, 28),
+                      [(name, algorithm_label(name)) for name in ALGORITHMS],
+                      lambda: self.gm.algorithm,
+                      lambda name: self.gm.set_algorithm(ALGORITHMS[name])),
         ]
         if dev_panel:
             # Lives in the Agent card header, next to the title

@@ -382,7 +382,7 @@ class Renderer:
         r = self.map_rect
         p.text(tr("map.title"), (r.x + 20, r.y + 28), 16, t["text1"], "bold", anchor="midleft")
         explored = len(agent.visited)
-        p.text(tr("map.explored", a=explored, b=len(world.cells)), (r.right - 20, r.y + 28), 13, t["text3"],
+        p.text(tr("map.explored", a=explored, b=len(world.cells)), (r.right - 232, r.y + 28), 12, t["text3"],
                anchor="midright")
 
         area = pygame.Rect(r.x + 20, r.y + 56, r.width - 40, r.height - 72)
