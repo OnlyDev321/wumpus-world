@@ -12,15 +12,23 @@ class Agent:
     Perception -> Memory -> Reasoning -> Decision Making -> Action.
     Enhanced with Episodic Memory to retain fatal failure causes across replays.
 
-    The agent knows rooms, doors and the entrance. The exit is learned only from
-    a percept on its cell; hazards and gold are also discovered through perception.
+    The agent knows only the entrance and that rooms are square (room_size x room_size).
+    It does not know how many rooms there are or where the doors are: a room becomes
+    known when the agent enters it, and a door (with the cell it leads to) is remembered
+    once the agent has walked through it. The exit is learned only from a percept on its
+    cell; hazards and gold are also discovered through perception.
     """
 
     ALLOW_RISK = True
 
     def __init__(self, layout, death_memory=None):
-        self.layout = layout
+        # Read only for the entrance, the room size and cell names in messages.
+        # Doors, rooms and hazards are never read from it.
+        self._map = layout
+        self.room_size = layout.room_size
         self.start_pos = layout.start_position
+        self.known_doors = {}  # door cell -> cell on the other side, learned by walking through
+        self.known_cells = set(self._room_cells(self.start_pos))
         self.exit_pos = None
         self.position = self.start_pos
         self.has_gold = False
@@ -48,6 +56,7 @@ class Agent:
             "possible_wumpus": {self.death_memory["wumpus"]} if self.death_memory["wumpus"] else set(),
             "pit_free": {start} - self.death_memory["pits"],
             "wumpus_free": {start} if self.death_memory["wumpus"] != start else set(),
+            "wumpus_localized": self.death_memory["wumpus"] is not None,
         }
 
         self.last_action = "INITIALIZED"
@@ -56,19 +65,41 @@ class Agent:
         else:
             self.thought_process = T("th.start")
 
+    def _room(self, pos):
+        """Room block of a cell. Rooms are square, so this follows from coordinates alone."""
+        return (pos[0] // self.room_size, pos[1] // self.room_size)
+
+    def _room_cells(self, pos):
+        S = self.room_size
+        top, left = pos[0] // S * S, pos[1] // S * S
+        return [(top + r, left + c) for r in range(S) for c in range(S)]
+
     def neighbors(self, pos):
-        return self.layout.get_adjacent(pos)
+        """Cells one step away as far as the agent knows: same room, plus doors it has used."""
+        r, c = pos
+        room = self._room(pos)
+        result = [nb for nb in ((r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1)) if self._room(nb) == room]
+        if pos in self.known_doors:
+            result.append(self.known_doors[pos])
+        return result
+
+    def learn_door(self, door, landing):
+        """Called by the game after the agent passes through `door` and lands on `landing`."""
+        self.known_doors[door] = landing
+        self.known_doors[landing] = door
+        self.known_cells.update(self._room_cells(landing))
 
     def name(self, pos):
-        return self.layout.label(pos)
+        return self._map.label(pos)
 
     def reset(self, keep_memory=False):
         """
-        Resets Agent state for a new round (reads the current layout again).
+        Resets Agent state for a new round (reads the entrance and room size again).
         If keep_memory is True, retains death_memory learned from previous failures on this map.
+        Rooms and doors are forgotten and must be discovered again.
         """
         retained_mem = self.death_memory if keep_memory else None
-        self.__init__(self.layout, death_memory=retained_mem)
+        self.__init__(self._map, death_memory=retained_mem)
 
     def record_death(self, reason, fatal_cell):
         """Registers fatal outcome into episodic memory so the agent avoids repeating it upon replay."""
@@ -106,7 +137,7 @@ class Agent:
     def reason(self, is_wumpus_alive=True):
         """REASONING: applies logic rules and death memory to update the Knowledge Base."""
         self.knowledge = deduce_knowledge(
-            self.layout.cells,
+            self.known_cells,
             self.neighbors,
             self.visited,
             self.percepts_history,
@@ -120,7 +151,8 @@ class Agent:
 
         Search state includes whether the arrow has been fired. After a guaranteed
         kill, only pit-free cells become traversable. No hidden hazards are read.
-        Door entry teleports in the same MOVE, just as GameManager executes it.
+        Entering a door the agent has already used teleports in the same MOVE, just as
+        GameManager executes it; unknown doors look like ordinary cells.
         Equal-cost routes prefer preserving the arrow.
         """
         goals = set(goals)
@@ -128,9 +160,14 @@ class Agent:
             return None
         safe = set(safe) | {self.position}
         after_shot = (safe | self.knowledge["pit_free"]) - self.knowledge["confirmed_pits"]
-        targets = ({self.knowledge["confirmed_wumpus"]}
-                   if self.knowledge["confirmed_wumpus"] is not None
-                   else set(self.knowledge["possible_wumpus"]))
+        # Without a stench (or a remembered death) the Wumpus may be in a room not seen yet,
+        # so no shot can be guaranteed.
+        if self.knowledge["confirmed_wumpus"] is not None:
+            targets = {self.knowledge["confirmed_wumpus"]}
+        elif self.knowledge.get("wumpus_localized"):
+            targets = set(self.knowledge["possible_wumpus"])
+        else:
+            targets = set()
         can_shoot = allow_shot and self.has_arrow and bool(targets)
         serial = count()
         queue = [(0, 0, next(serial), self.position, [])]
@@ -147,11 +184,9 @@ class Agent:
                 if target not in allowed:
                     continue
                 landing = target
-                if (target in self.layout.door_cells
-                        and self.layout.room_of(target) == self.layout.room_of(pos)):
-                    # Door endpoints are protected by the dungeon rules, and entry
-                    # carries us through even before the other side is perceived.
-                    landing = self.layout.door_partner(target)
+                if target in self.known_doors and self._room(target) == self._room(pos):
+                    # Stepping onto a known door from its own room carries us through it.
+                    landing = self.known_doors[target]
                 options.append((MOVE_COST, shots, landing, {"type": "MOVE", "to": target}))
             if can_shoot and not shots:
                 direction = self._sure_shot_direction(pos, targets)
@@ -171,7 +206,7 @@ class Agent:
         return [action["to"] for action in route[1]] if route else None
 
     def _sure_shot_direction(self, pos, targets):
-        if any(self.layout.room_of(t) != self.layout.room_of(pos) for t in targets):
+        if any(self._room(t) != self._room(pos) for t in targets):
             return None
         r, c = pos
         if all(t[0] == r for t in targets):
@@ -188,7 +223,7 @@ class Agent:
 
     def get_shoot_direction(self, target_pos):
         """Shooting direction if the target is in the same room and on the same row/column."""
-        if self.layout.room_of(target_pos) != self.layout.room_of(self.position):
+        if self._room(target_pos) != self._room(self.position):
             return None
         r, c = self.position
         tr, tc = target_pos

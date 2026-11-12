@@ -209,7 +209,11 @@ class GameManager:
     # Shared action handlers (used by both the AI and the player)
     # ------------------------------------------------------------------
     def _move_to(self, pos, who="", auto_door=True, auto_exit=True):
-        prev_room = self.world.room_of(self.agent.position)
+        prev_pos = self.agent.position
+        prev_room = self.world.room_of(prev_pos)
+        if self.world.room_of(pos) != prev_room:
+            # Stepping straight across a door link (from a door cell to its partner).
+            self.agent.learn_door(prev_pos, pos)
         self.agent.position = pos
         self.world.agent_position = pos
         self.steps += 1
@@ -251,6 +255,7 @@ class GameManager:
         self.stats["doors"] += 1
         target = self.world.door_partner(door)
         self.known_doors.update((door, target))
+        self.agent.learn_door(door, target)
         self.agent.position = target
         self.world.agent_position = target
         self.add_log(T("log.door", n=self.world.room_of(target) + 1))
