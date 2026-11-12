@@ -314,14 +314,14 @@ class GameManager:
             self.add_log(T("log.miss", who=who, dir=T(f"dir.{direction}")))
             # Deduce Wumpus-Free cells along the flight path of the missed shot
             dr, dc = {"UP": (-1, 0), "DOWN": (1, 0), "LEFT": (0, -1), "RIGHT": (0, 1)}[direction]
+            # Walk from the shooter to where the arrow stopped. A shot straight into the
+            # wall ends on the shooter's own cell, so it covers no cells at all.
             missed_cells = set()
-            curr = (start[0] + dr, start[1] + dc)
+            curr = start
             end = self.world.last_arrow_end
-            while True:
-                missed_cells.add(curr)
-                if curr == end:
-                    break
+            while curr != end:
                 curr = (curr[0] + dr, curr[1] + dc)
+                missed_cells.add(curr)
             if hasattr(self.agent, "record_missed_shot"):
                 self.agent.record_missed_shot(missed_cells)
         self.agent.reason(self.world.is_wumpus_alive)
