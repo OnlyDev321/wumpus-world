@@ -263,7 +263,6 @@ class GameManager:
         if self.agent.position == self.world.gold and not self.world.gold_taken:
             self.world.gold_taken = True
             self.agent.has_gold = True
-            self.score += GOLD_REWARD
             self.add_log(T("log.grab", who=who))
             if self.sound_manager:
                 self.sound_manager.play("gold")
@@ -312,6 +311,7 @@ class GameManager:
             self.agent.escaped = True
             if self.agent.has_gold:
                 self.victory = True
+                self.score += GOLD_REWARD
                 self.add_log(T("log.win", who=who))
             else:
                 self.add_log(T("log.escaped", who=who))
@@ -353,7 +353,8 @@ class GameManager:
         elif kind == "SHOOT":
             self._shoot(action["direction"])
         elif kind == "CLIMB":
-            self._climb()
+            # The agent only climbs without gold when it is deadlocked at the exit.
+            self._climb(allow_without_gold=True)
         else:
             self.game_over = True
             self.death_reason = "TRAPPED"

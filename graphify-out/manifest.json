@@ -6,21 +6,21 @@
     "semantic_hash": ""
   },
   "board.py": {
-    "mtime": 1793856153.9515648,
-    "seen": 1794361603.567803,
+    "mtime": 1794361614.2720017,
+    "seen": 1794456371.968058,
     "ast_hash": "7b69659e69502128584b0e46a350580e",
     "semantic_hash": ""
   },
   "game/agent.py": {
-    "mtime": 1793857603.627913,
-    "seen": 1794361603.5678048,
-    "ast_hash": "7b0173739c2a71b094ccc48a07e8ecc1",
+    "mtime": 1794361614.2723813,
+    "seen": 1794456371.96806,
+    "ast_hash": "f9f9e24248e4be099605ce99a8ad42dc",
     "semantic_hash": ""
   },
   "game/algorithms.py": {
-    "mtime": 1793856140.176048,
-    "seen": 1794361603.567806,
-    "ast_hash": "43a48c00981269bdca6db5caebcaf459",
+    "mtime": 1794361614.2727523,
+    "seen": 1794456371.968061,
+    "ast_hash": "41062423af18a4b6b8e9347a18b9ff69",
     "semantic_hash": ""
   },
   "game/benchmark.py": {
@@ -30,27 +30,27 @@
     "semantic_hash": ""
   },
   "game/game_manager.py": {
-    "mtime": 1793857603.6269212,
-    "seen": 1794361603.567807,
-    "ast_hash": "df0c3f3355e3136c3765945aaa7e01fe",
+    "mtime": 1794456509.7939243,
+    "seen": 1794456511.062079,
+    "ast_hash": "b99ea4b539c389046790a583f97e88d8",
     "semantic_hash": ""
   },
   "game/i18n.py": {
-    "mtime": 1793857603.6292634,
-    "seen": 1794361603.567808,
-    "ast_hash": "ec5e85b48aa5687aab1e31f97f489c4b",
+    "mtime": 1794361614.2734518,
+    "seen": 1794456371.968064,
+    "ast_hash": "2998f2eea537497d264e9d8c6248db07",
     "semantic_hash": ""
   },
   "game/rules.py": {
-    "mtime": 1793856140.1786506,
-    "seen": 1794361603.567809,
-    "ast_hash": "224964ef32889320a7066f94d1c5c3c4",
+    "mtime": 1794361614.273842,
+    "seen": 1794456371.968065,
+    "ast_hash": "5bb9d8985027f43993b6be92b36ff0f0",
     "semantic_hash": ""
   },
   "game/world.py": {
-    "mtime": 1793856140.1790934,
-    "seen": 1794361603.567809,
-    "ast_hash": "45ac742d888f7948c75601ed403e20b4",
+    "mtime": 1794361614.2744687,
+    "seen": 1794456371.9680672,
+    "ast_hash": "ec14da90a024d7456defb1c362b6ce99",
     "semantic_hash": ""
   },
   "main.py": {
@@ -60,14 +60,14 @@
     "semantic_hash": ""
   },
   "ui/controls.py": {
-    "mtime": 1793856140.180582,
-    "seen": 1794361603.567811,
-    "ast_hash": "db5e2da2501a1c8e952baf49686a81dd",
+    "mtime": 1794361614.2747936,
+    "seen": 1794456371.968069,
+    "ast_hash": "09693d0076b09fb415ca19348c628da7",
     "semantic_hash": ""
   },
   "ui/dev_panel.py": {
-    "mtime": 1793857603.6294556,
-    "seen": 1794361603.567811,
+    "mtime": 1794361614.2751236,
+    "seen": 1794456371.968069,
     "ast_hash": "452e1cf48fd4fa696fbe522c2aaf82f0",
     "semantic_hash": ""
   },
@@ -84,9 +84,9 @@
     "semantic_hash": ""
   },
   "ui/renderer.py": {
-    "mtime": 1793856140.1820824,
-    "seen": 1794361603.5678132,
-    "ast_hash": "7aa40cf1bfb85c65ca0d9b6b8be71ca3",
+    "mtime": 1794361614.2754595,
+    "seen": 1794456371.968072,
+    "ast_hash": "28205c03068d39ac56025bf77fcad13f",
     "semantic_hash": ""
   },
   "ui/sound_manager.py": {
@@ -120,9 +120,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793857603.6303089,
-    "seen": 1794361603.567817,
-    "ast_hash": "b6d2d16cedfb03ab84daedddfa20f43f",
+    "mtime": 1794456509.7943604,
+    "seen": 1794456511.062092,
+    "ast_hash": "bce98eb365828f3c757ca0ac80ee087a",
     "semantic_hash": ""
   },
   "assets/fonts/LICENSE.txt": {
@@ -249,6 +249,12 @@
     "mtime": 1793677864.268655,
     "seen": 1794361603.567831,
     "ast_hash": "08ed679394649b938af3533732086e5c",
+    "semantic_hash": ""
+  },
+  "game/scoring.py": {
+    "mtime": 1794361614.2740467,
+    "seen": 1794456371.968066,
+    "ast_hash": "e70e238c5fddd99f54ad1123e470e0ad",
     "semantic_hash": ""
   }
 }
