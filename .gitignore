@@ -12,8 +12,11 @@ __pycache__/
 .idea/
 .vscode/
 
-# graphify
-graphify-out/cache/
 
 # Saved game replays (local, per machine)
 replays/
+
+# Claude Code / graphify (local tooling)
+.claude/
+CLAUDE.md
+graphify-out/
