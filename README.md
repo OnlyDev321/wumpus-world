@@ -11,11 +11,16 @@
 ```text
 wumpus-world/
 ├── main.py                  # 🚀 프로그램 진입점 및 이벤트 루프
+├── replay_viewer.py         # 🎬 저장된 게임 리플레이 뷰어
 ├── requirements.txt         # 📦 의존성 패키지 (pygame-ce 2.5.8)
 ├── game/                    # 🎮 핵심 게임 로직 & AI 엔진
 │   ├── agent.py             # 🤖 AI Agent 클래스 (Perception, Memory, Decision, BFS)
+│   ├── algorithms.py        # 🧠 에이전트 알고리즘 (Logic + risk, Safe only)
 │   ├── rules.py             # 📜 명제 논리 추론 엔진 (Knowledge Base & Risk Evaluation)
 │   ├── world.py             # 🗺️ 다중 방 던전(벽·문·입구·출구), 위험 요소(Pit/Wumpus), 지각 신호 생성
+│   ├── scoring.py           # 🎯 점수 규칙 및 층별 사망 기억 페널티 계산
+│   ├── replays.py           # 📼 게임 이벤트 기록 및 리플레이 복원
+│   ├── benchmark.py         # 📈 알고리즘 성능 벤치마크 CLI
 │   └── game_manager.py      # ⚙️ 게임 흐름 동기화, 점수 계산 및 게임 모드 제어
 ├── ui/                      # 🖥️ UI & 오디오 렌더링
 │   ├── renderer.py          # 🎨 방 화면, 미니맵, Agent 패널, 결과 모달 렌더링
@@ -38,7 +43,9 @@ wumpus-world/
 | `game/world.py`        | 🗺️ 다중 방 던전 생성(클래식 맵/랜덤 맵), 문으로 연결된 방, Pit/Wumpus/Gold 배치, 화살 궤적 계산 및 Percept 발생 |
 | `game/agent.py`        | 🤖 AI Agent 상태 관리, 인지-추론-행동 루프, 에피소드 사망 기억(Episodic Memory), BFS 최단 경로 탐색 |
 | `game/rules.py`        | 📜 명제 논리 기반 지식 추론, 과거 실패 기억 통합(`death_memory`), 위험도 점수(`Risk Score`) 산출   |
+| `game/scoring.py`      | 🎯 이동·사격·사망·골드 점수 및 층별 사망 기억 누적 페널티(`calculate_memory_penalty`) 산정       |
 | `game/game_manager.py` | ⚙️ World와 Agent 상호작용 동기화, 사망 원인 기록(`record_death`), Replay 메모리 보존 제어          |
+| `game/replays.py`      | 📼 완료된 게임 JSONL 저장 및 복원 엔진                                                             |
 | `ui/renderer.py`       | 🖥️ 현재 방 화면, 던전 미니맵, 시야 안개(Fog of War), AI 사고 과정 및 Agent 패널 렌더링          |
 | `ui/controls.py`       | 🎛️ 마우스로 조작하는 하단 컨트롤 바 (AI 실행, 맵, 수동 조작, 보기 설정)                          |
 | `ui/sound_manager.py`  | 🔊 지각 신호(Breeze/Stench/Glitter), 탈출(Door), 사망(Pit/Wumpus), 비명(Scream) 저지연 오디오 재생 엔진 |
@@ -124,6 +131,13 @@ AI Agent는 동굴을 탐험하며 각 칸에서 감각 정보(**Percept**)를 �
 - **매 행동당 이동 비용 (Step Penalty)**: `-1점`
 - **화살 발사 비용 (Shoot Arrow)**: `-10점`
 - **Pit 추락 또는 Wumpus에 피격 (Game Over)**: `-1,000점`
+- **Replay 시 사망 기억 페널티 (Memory Penalty Debt)**:
+  - 이전 삶에서 사망하여 학습한 위험 요소(Pit/Wumpus)를 다음 Replay에서 계승할 때, 던전 깊이(층수, Floor)에 비례하여 시작 점수에서 차감됩니다 ($Base \times \text{Floor}$):
+    - **Pit(함정) 기억**: `-(20 × 층수)점` (1층: -20, 2층: -40, ..., 6층: -120점)
+    - **Wumpus(괴물) 기억**: `-(50 × 층수)점` (1층: -50, 2층: -100, ..., 6층: -300점)
+  - 게임 진행 중 논리 추론(In-episode reasoning)으로 발견한 위험 요소는 **무료**이며, 오직 **사망으로 인해 Replay로 전승된 기억**에만 페널티가 부과됩니다.
+  - 동일 맵에서 사망이 반복될 때마다 새로 추가된 사망 원인이 누적(`set` 기반)되어 다음 Replay의 시작 점수에 누적 차감 적용됩니다.
+  - 새 맵(`New map` / `Classic`)을 생성하면 사망 기억 및 페널티는 `0점`으로 완전 초기화됩니다.
 
 ---
 
@@ -171,12 +185,22 @@ graph LR
 - **사망 원인 학습 (`record_death`)**:
   - **Pit 추락 (`FALL_IN_PIT`)**: 사망한 좌표 `(r, c)`를 `confirmed_pits`로 즉시 각인.
   - **Wumpus 피격 (`EATEN_BY_WUMPUS`)**: 사망한 좌표 `(r, c)`를 `confirmed_wumpus`로 각인하여 다음 판에서 원거리 저격 기회를 모색.
-- **Replay 적응 (`[R]`)**:
+- **Replay 적응 (`[R]`) & 층별 누적 기억 페널티 (Memory Penalty Debt)**:
   - Replay 시 지각/이동 기록은 초기화되지만, 해당 맵에서 학습한 `death_memory`는 유지됩니다.
   - 100% 안전한 셀이 없어 위험을 감수해야 할 때, **이전에 죽었던 셀을 우선순위에서 완전히 제외**하고 다른 대체 분기 경로로 우회합니다.
+  - **사전 정보의 대가 (Memory Tax)**: 이전 삶에서 죽어 얻은 정보를 계승하는 대가로, 기억된 위험 요소의 층수에 비례하여 시작 점수에서 차감됩니다:
+    | 층수 (Floor) | Pit 기억 페널티 | Wumpus 기억 페널티 |
+    | :---: | :---: | :---: |
+    | **1층 (Room 1)** | -20점 | -50점 |
+    | **2층 (Room 2)** | -40점 | -100점 |
+    | **3층 (Room 3)** | -60점 | -150점 |
+    | **4층 (Room 4)** | -80점 | -200점 |
+    | **5층 (Room 5)** | -100점 | -250점 |
+    | **6층 (Room 6)** | -120점 | -300점 |
+  - 사망이 반복될 때마다 새로 발견된 위험 요소의 페널티가 누적(Cumulative)되며, 이미 기억된 동일한 좌표의 위험 요소는 중복 차감되지 않습니다.
 - **메모리 수명 주기 (Lifecycle)**:
-  - `[R] Replay`: 현재 맵의 사망 기억 유지 (반복 학습).
-  - `[M] Random Map` / `[D] Default Map`: 다른 세계로 이동하므로 사망 기억 완전 초기화 (`clear_death_memory`).
+  - `[R] Replay`: 현재 맵의 사망 기억 유지 (반복 학습 및 누적 페널티 적용).
+  - `[M] Random Map` / `[D] Default Map`: 다른 세계로 이동하므로 사망 기억 완전 초기화 (`clear_death_memory`, 점수 0점 리셋).
 
 ---
 
