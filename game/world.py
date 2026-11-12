@@ -253,6 +253,36 @@ class World:
         self.last_action_screamed = False
 
     # ------------------------------------------------------------------
+    # Saving / loading (game replays)
+    # ------------------------------------------------------------------
+    def to_layout(self):
+        """The initial map as JSON-friendly data; `from_layout` rebuilds the same World."""
+        return {
+            "room_size": self.room_size,
+            "rooms": [list(origin) for origin in self.rooms],
+            "doors": [[list(a), list(b)] for a, b in self.doors],
+            "start": list(self.start_position),
+            "exit": list(self.exit_position),
+            "pits": sorted(list(cell) for cell in self.initial_pits),
+            "wumpus": list(self.initial_wumpus),
+            "gold": list(self.initial_gold),
+        }
+
+    @classmethod
+    def from_layout(cls, data):
+        world = cls.__new__(cls)
+        world.room_size = world.size = data["room_size"]
+        world.pit_prob = 0.15
+        world._build_layout([tuple(o) for o in data["rooms"]], [(tuple(a), tuple(b)) for a, b in data["doors"]])
+        world.start_position = tuple(data["start"])
+        world.exit_position = tuple(data["exit"])
+        world.pits = {tuple(cell) for cell in data["pits"]}
+        world.wumpus = tuple(data["wumpus"])
+        world.gold = tuple(data["gold"])
+        world._save_initial_state()
+        return world
+
+    # ------------------------------------------------------------------
     # Percepts & actions
     # ------------------------------------------------------------------
     def get_percepts(self, pos):

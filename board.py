@@ -30,7 +30,7 @@ ICONS = [
     ("pit", "Pit", "pit.png"),
     ("gold", "Gold", "gold.png"),
     ("breeze", "Breeze", "breeze.png"),
-    ("stench", "Stench", "scream.png"),
+    ("stench", "Stench", "stench.png"),
     ("glitter", "Glitter", "giltter.png"),
     ("door", "Door", "door.png"),
     ("arrow", "Arrow", "arrow.png"),

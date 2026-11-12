@@ -16,7 +16,7 @@ def _hotkey(widget, key):
 class ControlPanel:
     """Bottom bar: agent, dungeon, manual control and view settings."""
 
-    def __init__(self, rect, gm, renderer, sound_manager, dev_panel=None):
+    def __init__(self, rect, gm, renderer, sound_manager, dev_panel=None, on_replays=None):
         self.rect = pygame.Rect(rect)
         self.gm = gm
         self.renderer = renderer
@@ -78,6 +78,9 @@ class ControlPanel:
             # Lives in the Agent card header, next to the title
             info = renderer.info_rect
             self.widgets.append(_hotkey(Button((info.x + 100, info.y + 16, 92, 24), T("btn.analytics"), dev_panel.toggle), "F1"))
+        if on_replays:
+            info = renderer.info_rect
+            self.widgets.append(_hotkey(Button((info.x + 200, info.y + 16, 92, 24), T("btn.replays"), on_replays), "F2"))
         self.rooms_label_pos = (mx, row2 + 16)
         self.arrow_status_pos = (hx + 124, row1 + 8)
         self.shoot_hint_pos = (hx + 124, row1 + 25)

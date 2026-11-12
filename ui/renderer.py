@@ -22,6 +22,7 @@ class Renderer:
         self.screen = screen
         self.p = Painter(screen, WINDOW_SIZE[0])
         self.reveal_all = False
+        self.result_hint = "result.hint"  # the replay viewer shows its own hint under the result
         self.view_room = None  # None = follow the agent; otherwise a room picked on the minimap
         self._followed = None
 
@@ -88,7 +89,7 @@ class Renderer:
                 self.assets[key] = None
 
         # Percept icons: cropped to their drawn content so they all look the same size
-        for key, name in (("breeze", "breeze"), ("stench", "scream"), ("glitter", "giltter")):
+        for key, name in (("breeze", "breeze"), ("stench", "stench"), ("glitter", "giltter")):
             path = asset(f"{name}.png")
             try:
                 img = pygame.image.load(path)
@@ -307,18 +308,11 @@ class Renderer:
         self._draw_room_doors(world, cell, rect)
 
         if cell == world.wumpus and cell not in world.pits:
-            img = self.assets.get("wumpus")
-            if img and not world.is_wumpus_alive:
-                faded = img.copy()
-                faded.set_alpha(110)
-                p.blit(faded, center=rect.center)
-                self._blit("scream", center=rect.center)
-            else:
-                self._blit("wumpus", center=rect.center)
+            # A shot Wumpus is gone from the board; the scream stays where it died
+            self._blit("wumpus" if world.is_wumpus_alive else "scream", center=rect.center)
 
         if cell == world.gold and not world.gold_taken:
-            self._blit("gold", center=rect.center)
-            self._blit("glitter", center=rect.center)
+            self._blit("gold", center=rect.center)  # glitter is a percept for the agent only, not drawn
 
         self._draw_percepts(world, cell, rect)
 
@@ -553,4 +547,4 @@ class Renderer:
         p.text(desc, (modal.x + 24, modal.y + 76), 14, t["text2"])
         p.text(tr("result.final"), (modal.x + 24, modal.y + 112), 12, t["text3"])
         p.text(str(gm.score), (modal.x + 24, modal.y + 128), 20, t["text1"], "bold")
-        p.text(tr("result.hint"), (modal.right - 24, modal.y + 140), 12, t["text3"], anchor="midright")
+        p.text(tr(self.result_hint), (modal.right - 24, modal.y + 140), 12, t["text3"], anchor="midright")

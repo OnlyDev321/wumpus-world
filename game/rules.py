@@ -62,10 +62,14 @@ def deduce_knowledge(cells, neighbors, visited, percepts_history, is_wumpus_aliv
     # 3. Deduce Wumpus location (Only exactly 1 Wumpus exists in the world)
     confirmed_wumpus = None
     possible_wumpus = set()
+    # True when the Wumpus is known to be among possible_wumpus. Without a stench the agent
+    # cannot tell, because `cells` holds only the rooms it has seen so far.
+    wumpus_localized = False
 
     if is_wumpus_alive:
         if recalled_wumpus:
             # Learned from previous death by Wumpus
+            wumpus_localized = True
             confirmed_wumpus = recalled_wumpus
             wumpus_free = all_cells - {recalled_wumpus}
             possible_wumpus = {recalled_wumpus}
@@ -73,6 +77,7 @@ def deduce_knowledge(cells, neighbors, visited, percepts_history, is_wumpus_aliv
             stench_positions = [pos for pos in visited if "stench" in percepts_history.get(pos, set())]
             if stench_positions:
                 # Wumpus must be located in the intersection of candidate cells for all Stench positions
+                wumpus_localized = True
                 candidate_sets = []
                 for sp in stench_positions:
                     candidates = set(neighbors(sp)) - wumpus_free
@@ -88,7 +93,8 @@ def deduce_knowledge(cells, neighbors, visited, percepts_history, is_wumpus_aliv
                         wumpus_free = all_cells - {confirmed_wumpus}
                         possible_wumpus = {confirmed_wumpus}
             else:
-                # No Stench encountered yet: any cell not ruled out can potentially hold the Wumpus
+                # No Stench encountered yet: any known cell not ruled out may hold the Wumpus,
+                # and so may any room not discovered yet
                 possible_wumpus = all_cells - wumpus_free
 
     # 4. Deduce Pit locations (Multiple Pits can exist)
@@ -127,6 +133,7 @@ def deduce_knowledge(cells, neighbors, visited, percepts_history, is_wumpus_aliv
         "confirmed_wumpus": confirmed_wumpus,
         "possible_pits": possible_pits,
         "possible_wumpus": possible_wumpus,
+        "wumpus_localized": wumpus_localized,
         "pit_free": pit_free,
         "wumpus_free": wumpus_free,
         "pit_chance": pit_chance,

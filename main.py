@@ -1,9 +1,14 @@
+import os
+import subprocess
+import sys
+
 import pygame
 
 from game.world import World
 from game.agent import Agent
 from game.game_manager import GameManager
 from game.i18n import get_language, set_language
+from game.replays import GameRecorder
 from ui.renderer import Renderer, WINDOW_SIZE
 from ui.controls import ControlPanel
 from ui.dev_panel import DevPanel
@@ -16,12 +21,20 @@ ARROW_KEYS = {
     pygame.K_RIGHT: "RIGHT",
 }
 MOVES = {"UP": (-1, 0), "DOWN": (1, 0), "LEFT": (0, -1), "RIGHT": (0, 1)}
+VIEWER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "replay_viewer.py")
+
+
+def open_replay_viewer():
+    """The replay viewer runs as its own window, so the game keeps going."""
+    subprocess.Popen([sys.executable, VIEWER])
 
 
 def handle_key(key, gm, renderer, dev_panel=None):
     """Keyboard shortcuts mirror the on-screen controls."""
     if key == pygame.K_F1 and dev_panel:
         dev_panel.toggle()
+    elif key == pygame.K_F2:
+        open_replay_viewer()
     elif key in (pygame.K_1, pygame.K_2, pygame.K_3):
         gm.set_play_mode(gm.PLAY_MODES[key - pygame.K_1])
     elif key == pygame.K_SPACE:
@@ -82,10 +95,10 @@ def main():
     sound_manager = SoundManager()
     world = World(num_rooms=3)
     agent = Agent(world)
-    gm = GameManager(world, agent, sound_manager=sound_manager)
+    gm = GameManager(world, agent, sound_manager=sound_manager, recorder=GameRecorder())
     renderer = Renderer(screen)
     dev_panel = DevPanel(gm, WINDOW_SIZE)
-    controls = ControlPanel(renderer.bar_rect, gm, renderer, sound_manager, dev_panel)
+    controls = ControlPanel(renderer.bar_rect, gm, renderer, sound_manager, dev_panel, on_replays=open_replay_viewer)
 
     hand = pygame.SYSTEM_CURSOR_HAND
     arrow = pygame.SYSTEM_CURSOR_ARROW
