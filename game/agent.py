@@ -1,7 +1,14 @@
 from heapq import heappop, heappush
 from itertools import count
 
-from game.scoring import MOVE_COST, SHOT_COST, DEATH_COST
+from game.scoring import (
+    MOVE_COST,
+    SHOT_COST,
+    DEATH_COST,
+    PIT_BASE_PENALTY,
+    WUMPUS_BASE_PENALTY,
+    calculate_memory_penalty,
+)
 from game.rules import deduce_knowledge, calculate_cell_risk
 from game.i18n import T, Join
 
@@ -115,12 +122,23 @@ class Agent:
     def has_death_memory(self):
         return bool(self.death_memory["pits"] or self.death_memory["wumpus"] is not None)
 
+    def get_memory_penalty(self):
+        return calculate_memory_penalty(self.death_memory, self._map)
+
     def get_memory_summary(self):
         items = []
         if self.death_memory["pits"]:
-            items.append(T("mem.pit", cells=", ".join(self.name(p) for p in sorted(self.death_memory["pits"]))))
+            pit_descs = []
+            for p in sorted(self.death_memory["pits"]):
+                floor = self._map.room_of(p) + 1 if hasattr(self._map, "room_of") else 1
+                cost = PIT_BASE_PENALTY * floor
+                pit_descs.append(f"{self.name(p)} (-{cost})")
+            items.append(T("mem.pit", cells=", ".join(pit_descs)))
         if self.death_memory["wumpus"]:
-            items.append(T("mem.wumpus", cell=self.name(self.death_memory["wumpus"])))
+            w = self.death_memory["wumpus"]
+            floor = self._map.room_of(w) + 1 if hasattr(self._map, "room_of") else 1
+            cost = WUMPUS_BASE_PENALTY * floor
+            items.append(T("mem.wumpus", cell=f"{self.name(w)} (-{cost})"))
         return Join(items, "; ") if items else T("mem.none")
 
     def perceive(self, current_percepts):
