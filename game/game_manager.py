@@ -3,7 +3,7 @@ import time
 from game.world import World
 from game.algorithms import algorithm_name
 from game.i18n import T, Join, algorithm_label
-from game.scoring import MOVE_COST, SHOT_COST, DEATH_COST, GOLD_REWARD
+from game.scoring import MOVE_COST, SHOT_COST, DEATH_COST, GOLD_REWARD, calculate_memory_penalty
 
 
 class GameManager:
@@ -23,7 +23,8 @@ class GameManager:
         self.recorder = recorder  # game.replays.GameRecorder: saves finished games for replay_viewer.py
         self.map_kind = "random"  # "random" or "classic", kept for the replay list
         self.num_rooms = world.num_rooms
-        self.score = 0
+        penalty = calculate_memory_penalty(self.agent.death_memory, self.world) if self.agent.has_death_memory() else 0
+        self.score = -penalty
         self.steps = 0
         self.game_over = False
         self.victory = False
@@ -186,10 +187,13 @@ class GameManager:
             log_msg = T("log.replay_mem", summary=self.agent.get_memory_summary()) if had_memory else T("log.replay")
 
         if type(self.agent) is not self.agent_class:
-            self.agent = self.agent_class(self.world)
+            had_mem = self.agent.has_death_memory()
+            mem = self.agent.death_memory if had_mem else None
+            self.agent = self.agent_class(self.world, death_memory=mem)
             log_msg = Join([log_msg, T("log.algorithm", name=algorithm_label(self.algorithm))], " ")
 
-        self.score = 0
+        penalty = calculate_memory_penalty(self.agent.death_memory, self.world) if self.agent.has_death_memory() else 0
+        self.score = -penalty
         self.steps = 0
         self.game_over = False
         self.victory = False
