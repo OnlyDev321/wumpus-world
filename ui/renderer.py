@@ -22,6 +22,7 @@ class Renderer:
         self.screen = screen
         self.p = Painter(screen, WINDOW_SIZE[0])
         self.reveal_all = False
+        self.result_hint = "result.hint"  # the replay viewer shows its own hint under the result
         self.view_room = None  # None = follow the agent; otherwise a room picked on the minimap
         self._followed = None
 
@@ -553,4 +554,4 @@ class Renderer:
         p.text(desc, (modal.x + 24, modal.y + 76), 14, t["text2"])
         p.text(tr("result.final"), (modal.x + 24, modal.y + 112), 12, t["text3"])
         p.text(str(gm.score), (modal.x + 24, modal.y + 128), 20, t["text1"], "bold")
-        p.text(tr("result.hint"), (modal.right - 24, modal.y + 140), 12, t["text3"], anchor="midright")
+        p.text(tr(self.result_hint), (modal.right - 24, modal.y + 140), 12, t["text3"], anchor="midright")

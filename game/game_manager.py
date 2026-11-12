@@ -16,10 +16,12 @@ class GameManager:
 
     SPEEDS = {"slow": 700, "normal": 400, "fast": 150}
 
-    def __init__(self, world, agent, sound_manager=None):
+    def __init__(self, world, agent, sound_manager=None, recorder=None):
         self.world = world
         self.agent = agent
         self.sound_manager = sound_manager
+        self.recorder = recorder  # game.replays.GameRecorder: saves finished games for replay_viewer.py
+        self.map_kind = "random"  # "random" or "classic", kept for the replay list
         self.num_rooms = world.num_rooms
         self.score = 0
         self.steps = 0
@@ -37,6 +39,7 @@ class GameManager:
         self._shot_seq = 0
 
         self.initial_perceive()
+        self._start_recording()
 
     # ------------------------------------------------------------------
     # Play mode
@@ -114,6 +117,19 @@ class GameManager:
             self._recorded = True
             self.finished_at = time.perf_counter()
             self.history.append(self.result())
+            if self.recorder:
+                self.add_log(T("log.saved" if self.recorder.finish(self) else "log.save_failed"))
+
+    # ------------------------------------------------------------------
+    # Replay recording
+    # ------------------------------------------------------------------
+    def _start_recording(self, retry=False):
+        if self.recorder:
+            self.recorder.start(self, retry)
+
+    def _record(self, kind, **data):
+        if self.recorder:
+            self.recorder.add(kind, **data)
 
     @property
     def auto_delay_ms(self):
@@ -150,6 +166,8 @@ class GameManager:
         - "random": new random dungeon with `num_rooms` rooms, memory wiped
         - "classic": the original hand-made 4x4 map, memory wiped
         """
+        if mode in ("random", "classic"):
+            self.map_kind = mode
         if mode == "random":
             self.world.generate_random_world(self.num_rooms)
             self.agent.clear_death_memory()
@@ -185,6 +203,7 @@ class GameManager:
         self._reset_stats()
         self.initial_perceive()
         self.add_log(log_msg)
+        self._start_recording(retry=mode == "replay")
 
     # ------------------------------------------------------------------
     # Shared action handlers (used by both the AI and the player)
@@ -327,7 +346,8 @@ class GameManager:
     # ------------------------------------------------------------------
     # AI
     # ------------------------------------------------------------------
-    def step_ai(self):
+    def step_ai(self, action=None):
+        """One AI turn. A replay passes the recorded `action`; the agent still thinks, so its reasoning is shown."""
         if self.game_over:
             return
 
@@ -335,7 +355,9 @@ class GameManager:
         current_percepts = self.world.get_percepts(self.agent.position)
         self.agent.perceive(current_percepts)
         self.agent.reason(self.world.is_wumpus_alive)
-        action = self.agent.decide_next_action(self.world.is_wumpus_alive) or {"type": "PASS"}
+        decided = self.agent.decide_next_action(self.world.is_wumpus_alive) or {"type": "PASS"}
+        action = action or decided
+        self._record("ai", action=dict(action))
         self.stats["think_ms"].append((time.perf_counter() - started) * 1000)
         if str(getattr(self.agent, "last_action", "")).startswith("RISKY"):
             self.stats["risky"] += 1
@@ -374,6 +396,7 @@ class GameManager:
         if self.game_over:
             return
         self._take_control()
+        self._record("move", dr=dr, dc=dc)
         r, c = self.agent.position
         target = (r + dr, c + dc)
         if (target in self.world.get_adjacent(self.agent.position)
@@ -386,18 +409,21 @@ class GameManager:
     def manual_grab(self):
         if not self.game_over:
             self._take_control()
+            self._record("grab")
             self._grab(who=T("log.you"))
             self._after_action()
 
     def manual_shoot(self, direction):
         if not self.game_over:
             self._take_control()
+            self._record("shoot", direction=direction)
             self._shoot(direction, who=T("log.you"))
             self._after_action()
 
     def manual_climb(self):
         if not self.game_over:
             self._take_control()
+            self._record("climb")
             self._climb(who=T("log.you"), allow_without_gold=True)
             self._after_action()
 
@@ -405,6 +431,7 @@ class GameManager:
         if self.game_over:
             return
         self._take_control()
+        self._record("door")
         if self.at_exit():
             self._climb(who=T("log.you"), allow_without_gold=True)
         elif self.agent.position in self.world.door_cells:
