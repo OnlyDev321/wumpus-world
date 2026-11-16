@@ -155,6 +155,10 @@ class GameManager:
 
     def set_num_rooms(self, n):
         """Changes the room count and generates a new dungeon with it."""
+        # The Classic map is intentionally fixed to one 4x4 room. Users must
+        # choose New map before changing the room count.
+        if self.map_kind == "classic":
+            return
         n = max(World.MIN_ROOMS, min(World.MAX_ROOMS, n))
         if n != self.num_rooms:
             self.num_rooms = n
@@ -177,6 +181,9 @@ class GameManager:
             log_msg = T("log.new_dungeon", n=rooms)
         elif mode == "classic":
             self.world.generate_classic_world()
+            # Classic is always the fixed one-room 4x4 map. Keep the control
+            # panel and the actual world synchronized.
+            self.num_rooms = self.world.num_rooms
             self.agent.clear_death_memory()
             self.agent.reset(keep_memory=False)
             log_msg = T("log.classic")

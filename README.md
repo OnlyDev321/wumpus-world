@@ -248,7 +248,7 @@ graph LR
 |                    <kbd>M</kbd>                     | **New map**                  | 선택한 방 개수로 새 던전을 생성하며 사망 기억을 초기화합니다.       |
 |                    <kbd>R</kbd>                     | **Replay**                   | 같은 맵을 다시 플레이하며 **사망 기억(Episodic Memory)을 계승**합니다. |
 |                    <kbd>D</kbd>                     | **Classic**                  | 원래의 4×4 클래식 맵(입구 (3,0), 출구 (0,3))을 로드합니다.          |
-|             <kbd>+</kbd> / <kbd>-</kbd>             | **Rooms** − / +              | 방 개수(1~6)를 바꾸고 새 던전을 생성합니다.                         |
+|             <kbd>+</kbd> / <kbd>-</kbd>             | **Rooms** − / +              | Random map의 방 개수(1~6)를 바꾸고 새 던전을 생성합니다. Classic map에서는 고정 1개 방이므로 비활성화됩니다. |
 | <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | 방향 버튼                    | 수동 이동 (Manual 모드로 전환). 벽은 통과할 수 없고 문으로만 다른 방에 갈 수 있습니다.   |
 | <kbd>Shift</kbd> + 방향키                           | 화살 보유 상태 표시          | 해당 방향으로 화살 발사 (1회, 같은 방 안에서만 날아감).             |
 |                    <kbd>G</kbd>                     | **Grab gold**                | 현재 칸의 Gold를 획득합니다. |

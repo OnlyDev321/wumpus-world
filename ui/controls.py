@@ -53,7 +53,8 @@ class ControlPanel:
             _hotkey(Button((mx + 108, row1, 92, 32), T("btn.replay"), lambda: gm.reset("replay")), "R"),
             _hotkey(Button((mx + 208, row1, 92, 32), T("btn.classic"), lambda: gm.reset("classic")), "D"),
             _hotkey(Stepper((mx + 108, row2, 120, 32), lambda: gm.num_rooms, gm.set_num_rooms,
-                    World.MIN_ROOMS, World.MAX_ROOMS), "−  /  +"),
+                    World.MIN_ROOMS, World.MAX_ROOMS,
+                    enabled=lambda: gm.map_kind != "classic"), "−  /  +"),
             # Manual control: inverted-T arrow pad
             _hotkey(Button((hx + 36, row1, 32, 32), "", lambda: self._direction("UP"), icon="UP", enabled=manual), "↑"),
             _hotkey(Button((hx, row2 - 8, 32, 32), "", lambda: self._direction("LEFT"), icon="LEFT", enabled=manual), "←"),

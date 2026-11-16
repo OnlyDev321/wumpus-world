@@ -135,8 +135,8 @@ class Segmented(Widget):
 class Stepper(Widget):
     """Arco InputNumber with -/+ buttons."""
 
-    def __init__(self, rect, get, set_, min_value, max_value):
-        super().__init__(rect)
+    def __init__(self, rect, get, set_, min_value, max_value, enabled=None):
+        super().__init__(rect, enabled)
         self.get = get
         self.set = set_
         self.min = min_value
@@ -149,6 +149,8 @@ class Stepper(Widget):
         return minus, plus
 
     def click(self, pos):
+        if not self.enabled:
+            return
         minus, plus = self._parts()
         value = self.get()
         if minus.collidepoint(pos) and value > self.min:
@@ -163,6 +165,7 @@ class Stepper(Widget):
         mouse = pygame.mouse.get_pos()
         p.box(self.rect, t["fill2"], radius=4)
         for part, sign, can in ((minus, "-", value > self.min), (plus, "+", value < self.max)):
+            can = self.enabled and can
             if can and part.collidepoint(mouse):
                 p.box(part, t["fill3"], radius=4)
             color = t["text1"] if can else t["text4"]
@@ -170,4 +173,5 @@ class Stepper(Widget):
             p.line((cx - 5, cy), (cx + 5, cy), color, 2)
             if sign == "+":
                 p.line((cx, cy - 5), (cx, cy + 5), color, 2)
-        p.text(str(value), self.rect.center, 14, t["text1"], "medium", anchor="center")
+        p.text(str(value), self.rect.center, 14, t["text1"] if self.enabled else t["text4"],
+               "medium", anchor="center")
