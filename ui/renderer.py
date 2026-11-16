@@ -312,7 +312,14 @@ class Renderer:
             self._blit("wumpus" if world.is_wumpus_alive else "scream", center=rect.center)
 
         if cell == world.gold and not world.gold_taken:
-            self._blit("gold", center=rect.center)  # glitter is a percept for the agent only, not drawn
+            self._blit("gold", center=rect.center)
+            # Show the Glitter percept as a small overlay on top of the Gold.
+            # Both sprites are hidden together once GameManager sets gold_taken.
+            glitter_pos = (
+                rect.right - int(rect.width * 0.22),
+                rect.y + int(rect.height * 0.22),
+            )
+            self._blit("glitter", center=glitter_pos)
 
         self._draw_percepts(world, cell, rect)
 
@@ -326,8 +333,8 @@ class Renderer:
         Each percept icon sits against the edge of the cell that faces its source:
         breeze towards each neighbouring pit, stench towards the Wumpus. A cell next to
         two pits shows two breeze icons. Drawn from the map itself so it also works in
-        reveal mode; nothing on top of a pit or the Wumpus. Glitter is not drawn: it only
-        exists on the gold cell itself and is used by the agent as a percept.
+        reveal mode; nothing on top of a pit or the Wumpus. Glitter is drawn as an
+        overlay on the Gold sprite in _draw_cell().
         """
         if cell in world.pits or cell == world.wumpus:
             return
