@@ -2,7 +2,7 @@
 
 ### 불확실한 환경에서 살아남는 AI Agent
 
-여러 개의 4×4 방으로 이루어진 던전(방 개수 1~6개 선택)에서 AI Agent가 **Breeze, Stench, Glitter, Scream** 등의 환경 신호(Percept)를 수집하여 지식 베이스(Knowledge Base)를 갱신하고, 명제 논리(Propositional Logic)와 BFS 탐색을 통해 안전한 경로를 추론하여 **Gold를 획득하고 무사히 탈출**하는 Agentic AI 프로젝트입니다.
+여러 개의 4×4 방으로 이루어진 던전(방 개수 1~6개 선택)에서 AI Agent가 **Breeze, Stench, Glitter, Scream** 등의 환경 신호(Percept)를 수집하고, 기억과 논리를 이용해 위험을 피하면서 **Gold를 획득하고 무사히 탈출**하는 Agentic AI 프로젝트입니다. Agent의 기본 경로 탐색은 A*이며, BFS와 UCS도 같은 탐색 인터페이스에서 선택할 수 있습니다.
 
 ---
 
@@ -14,13 +14,15 @@ wumpus-world/
 ├── replay_viewer.py         # 🎬 저장된 게임 리플레이 뷰어
 ├── requirements.txt         # 📦 의존성 패키지 (pygame-ce 2.5.8)
 ├── game/                    # 🎮 핵심 게임 로직 & AI 엔진
-│   ├── agent.py             # 🤖 AI Agent 클래스 (Perception, Memory, Decision, BFS)
+│   ├── agent.py             # 🤖 AI Agent 클래스 (Perception, Memory, Logic, Risk, Planning)
 │   ├── algorithms.py        # 🧠 에이전트 알고리즘 (Logic + risk, Safe only)
 │   ├── rules.py             # 📜 명제 논리 추론 엔진 (Knowledge Base & Risk Evaluation)
 │   ├── world.py             # 🗺️ 다중 방 던전(벽·문·입구·출구), 위험 요소(Pit/Wumpus), 지각 신호 생성
 │   ├── scoring.py           # 🎯 점수 규칙 및 원인별 고정 사망 기억 페널티 계산
+│   ├── search.py            # 🔎 BFS·UCS·A* 공통 그래프 탐색 엔진
 │   ├── replays.py           # 📼 게임 이벤트 기록 및 리플레이 복원
 │   ├── benchmark.py         # 📈 알고리즘 성능 벤치마크 CLI
+│   ├── i18n.py              # 🌐 영어 / 한국어 UI 문자열
 │   └── game_manager.py      # ⚙️ 게임 흐름 동기화, 점수 계산 및 게임 모드 제어
 ├── ui/                      # 🖥️ UI & 오디오 렌더링
 │   ├── renderer.py          # 🎨 방 화면, 미니맵, Agent 패널, 결과 모달 렌더링
@@ -28,7 +30,6 @@ wumpus-world/
 │   ├── controls.py          # 🎛️ 하단 컨트롤 바 (버튼, 스위치, 방 개수 선택)
 │   ├── widgets.py           # 🧩 Button / Switch / Segmented / Stepper 위젯
 │   ├── painter.py           # ✏️ 텍스트·도형·태그 드로잉 헬퍼
-│   ├── (game/i18n.py)       # 🌐 영어 / 한국어 UI 문자열
 │   ├── theme.py             # 🌗 Arco Design 스타일 라이트/다크 테마 토큰
 │   └── sound_manager.py     # 🔊 저지연 오디오 시스템 (Breeze, Stench, Glitter, Scream, Door, Pit, Wumpus, Gold)
 └── assets/                  # 🖼️ 고화질 2D 스프라이트 및 사운드 에셋
@@ -41,10 +42,10 @@ wumpus-world/
 | :--------------------- | :------------------------------------------------------------------------------------------------ |
 | `main.py`              | 🚀 Pygame 초기화, 윈도우 생성, 마우스/키보드 이벤트 분기 및 메인 루프 실행                        |
 | `game/world.py`        | 🗺️ 다중 방 던전 생성(클래식 맵/랜덤 맵), 문으로 연결된 방, Pit/Wumpus/Gold 배치, 화살 궤적 계산 및 Percept 발생 |
-| `game/agent.py`        | 🤖 AI Agent 상태 관리, 인지-추론-행동 루프, 에피소드 사망 기억(Episodic Memory), BFS 최단 경로 탐색 |
+| `game/agent.py`        | 🤖 AI Agent 상태 관리, 인지·추론·행동 루프, 사망 기억, 위험 평가 및 경로 계획 |
 | `game/rules.py`        | 📜 명제 논리 기반 지식 추론, 과거 실패 기억 통합(`death_memory`), 위험도 점수(`Risk Score`) 산출   |
 | `game/scoring.py`      | 🎯 이동·사격·사망·골드 점수 및 원인별 고정 사망 기억 페널티(`calculate_memory_penalty`) 산정       |
-| `game/search.py`       | 🔎 공통 BFS·UCS·A* 그래프 탐색 엔진 및 탐색 결과 통계                         |
+| `game/search.py`       | 🔎 공통 BFS·UCS·A* 그래프 탐색 엔진 및 경로 탐색 결과(`cost`, `expanded`) 반환 |
 | `game/game_manager.py` | ⚙️ World와 Agent 상호작용 동기화, 사망 원인 기록(`record_death`), Replay 메모리 보존 제어          |
 | `game/replays.py`      | 📼 완료된 게임 JSONL 저장 및 복원 엔진                                                             |
 | `ui/renderer.py`       | 🖥️ 현재 방 화면, 던전 미니맵, 시야 안개(Fog of War), AI 사고 과정 및 Agent 패널 렌더링          |
@@ -80,8 +81,10 @@ flowchart TD
         World["<b>world.py</b><br/>Grid World & Percept Generator"]
         Agent["<b>agent.py</b><br/>AI Agent & Episodic Memory"]
         Rules["<b>rules.py</b><br/>Propositional Logic Engine"]
+        Search["<b>search.py</b><br/>BFS · UCS · A*"]
 
         Agent -->|Logical Reasoning| Rules
+        Agent -->|Path Planning| Search
     end
 
     subgraph UI_Audio["🖥️ Presentation & Audio Layer"]
@@ -144,12 +147,34 @@ AI Agent는 동굴을 탐험하며 각 칸에서 감각 정보(**Percept**)를 �
 
 ## 🤖 AI Agent 추론 및 결정 메커니즘
 
-Agent는 불확실한 부분 관측 환경(POMDP)에서 다음과 같은 **5단계 인지 순환 루프**를 거쳐 행동합니다.
+### Agent의 동작을 간단히 이해하기
+
+Agent는 다음 순서로 주변을 관찰하고 행동합니다.
 
 ```text
-[ 1. Perception ]  -->  [ 2. Memory Update ]  -->  [ 3. Logic Deduction ]
-                                                            │
-[ 5. Action Execution ]  <--  [ 4. Decision & Pathfinding ]  ┘
+Perception → Memory → Logic → Risk evaluation → Planning → Action
+```
+
+- **Perception**: `Breeze`, `Stench`, `Glitter`, `Scream`, `Exit`를 감지합니다.
+- **Memory**: 방문한 칸, 이미 발견한 위험, Wumpus 위치, 탐색한 경로를 기억합니다.
+- **Logic**: 감지한 정보를 바탕으로 각 칸이 안전한지 추론합니다.
+- **Risk evaluation**: 아직 확실하지 않은 칸의 Pit/Wumpus 위험도를 계산합니다.
+- **Planning**: `game/search.py`의 BFS, UCS, A* 중 하나로 목표까지의 경로를 찾습니다.
+  - BFS는 이동 횟수가 가장 적은 경로를 찾습니다.
+  - UCS는 이동과 사격을 포함한 총 경로 비용이 가장 작은 경로를 찾습니다.
+  - A*는 UCS의 비용에 heuristic을 더해 현재 Agent의 기본 탐색 알고리즘으로 사용됩니다.
+- **Action**: `MOVE`, `SHOOT`, `GRAB`, `CLIMB`, `PASS` 중 하나를 선택합니다.
+
+즉, **Logic은 Agent가 세계를 이해하도록 하고, Risk evaluation은 위험을 판단하도록 하며, BFS/UCS/A*는 실제 이동 경로를 계획하도록 합니다.** 현재 Agent는 A*로 알려진 안전 영역의 경로를 계획하고, 안전한 경로가 없을 때는 별도의 Risk Score로 frontier 후보를 비교합니다. BFS와 UCS는 같은 탐색 인터페이스에서 비교 및 fallback 용도로 사용할 수 있습니다.
+
+기본값은 A*이며, 코드에서 `agent.set_search_algorithm("bfs")`, `agent.set_search_algorithm("ucs")`, `agent.set_search_algorithm("astar")`로 경로 탐색 방식을 바꿀 수 있습니다. 화면의 Agent 스위처(`Logic + risk`, `Safe only`)는 탐색 알고리즘이 아니라 Agent의 행동 정책을 바꾸는 기능입니다.
+
+Agent는 불확실한 부분 관측 환경(POMDP)에서 다음과 같은 **6단계 인지 순환 루프**를 거쳐 행동합니다.
+
+```text
+[ 1. Perception ]  -->  [ 2. Memory ]  -->  [ 3. Logic ]
+                                                   ↓
+[ 6. Action ]  <--  [ 5. Planning ]  <--  [ 4. Risk Evaluation ]
 ```
 
 ### 1. 명제 논리 지식 베이스 (Knowledge Base)
@@ -165,10 +190,10 @@ Agent는 불확실한 부분 관측 환경(POMDP)에서 다음과 같은 **5단�
 ### 2. 행동 우선순위 (Decision Hierarchy)
 
 1. **Gold 획득 (`GRAB`)**: 현재 칸에 Glitter 감지 시 즉시 금괴 획득.
-2. **출구로 탈출 (`CLIMB`)**: Gold 소지 시 Dijkstra 탐색으로 이동 비용(걸음당 1점)과 사격 비용(10점)을 합산해 출구 경로를 선택합니다. 사격 위치까지의 이동도 포함하며, 비용이 같으면 화살을 보존합니다. 문 진입과 자동 통과는 실제 게임처럼 한 번의 이동으로 계산합니다.
+2. **출구로 탈출 (`CLIMB`)**: Gold 소지 시 현재 선택된 경로 탐색(기본 A*)으로 이동 비용(걸음당 1점)과 사격 비용(10점)을 합산해 출구 경로를 선택합니다. 사격 위치까지의 이동도 포함하며, 비용이 같으면 화살을 보존합니다. 문 진입과 자동 통과는 실제 게임처럼 한 번의 이동으로 계산합니다.
 3. **안전 구역 탐색 (`EXPLORE_SAFE`)**: 도달 가능한 안전 미방문 셀까지 최소 이동 경로로 탐색합니다. 안전하게 탐색할 곳이 있으면 Wumpus 위치를 알아도 사냥하러 가지 않습니다.
 4. **필요한 사격 (`SHOOT`)**: 확실히 명중하고 처치 후 구덩이 없는 유용한 경로가 열릴 때만 고려합니다. 안전 탐색이 막히면 사격으로 여는 경로 비용과 위험 진입의 예상 비용을 비교합니다. 구덩이가 계속 길을 막으면 사격하지 않습니다. 처치 보너스는 없습니다.
-5. **전역 경계선 위험 감수 (`GLOBAL_FRONTIER_RISK`)**: 안전 탐색 경로가 없으면 전체 경계선에서 `사망 확률 × 1000 + 이동 횟수`가 가장 작은 후보를 선택합니다. 사격으로 안전한 경로를 여는 편이 더 저렴하면 그 경로를 선택합니다. `Safe only`는 위험 진입을 하지 않습니다. 미탐색 정보에 따른 추정이므로 전체 게임의 최적 점수를 보장하지는 않습니다.
+5. **전역 경계선 위험 감수 (`GLOBAL_FRONTIER_RISK`)**: 안전 탐색 경로가 없으면 전체 경계선에서 `risk × 1000 + 이동 횟수`가 가장 작은 후보를 선택합니다. 사격으로 안전한 경로를 여는 편이 더 저렴하면 그 경로를 선택합니다. `Safe only`는 위험 진입을 하지 않습니다. Risk Score는 `calculate_cell_risk()`의 추정값이므로 전체 게임의 최적 점수를 보장하지는 않습니다.
 6. **탐색 불가 (`TRAPPED`)**: 더 이상 탐색을 이어갈 경로가 없으면, 출구를 알고 안전한 경로가 있는 경우 출구로 후퇴해 Gold 없이 탈출합니다(`Escaped`). 출구로 갈 수 없으면 `TRAPPED` 상태로 종료. 그 외에는 Gold 없이 자동 탈출하지 않으며, Gold를 찾기 전에는 출구 칸도 탐색·통과할 수 있습니다.
 
 ### 3. 🧠 에피소드 사망 기억 및 적응 학습 (Episodic Memory & Failure Learning)
@@ -204,6 +229,7 @@ graph LR
 - **좌측 상단 – 방 화면**: Agent가 있는 방을 픽셀 아트로 표시. 미탐색 칸은 안개, 추론된 안전 칸은 `SAFE`, 확정된 위험은 `PIT` / `WUMPUS` 태그. 다른 방으로 통하는 문은 가장자리의 파란 `R2` 표시.
 - **우측 상단 – 던전 미니맵**: 모든 방과 문, 방문한 칸, 입구/출구, Agent 위치. 방을 클릭하면 해당 방을 미리 볼 수 있습니다.
 - **Agent 패널**: 점수·걸음·Gold·화살, 현재 감각 신호, AI 추론 과정, 이벤트 로그.
+- **Agent 선택**: 미니맵 헤더의 스위처에서 `Logic + risk` 또는 `Safe only` Agent를 선택할 수 있습니다.
 - **하단 컨트롤 바**: 키보드 없이 마우스로 모든 조작 가능.
 - **라이트 / 다크 테마** 전환.
 - **언어 전환 (EN / 한국어)**: 하단 보기 그룹에서 전환. 버튼, 패널, AI 추론, 로그까지 모두 즉시 바뀝니다. 한국어는 Helvetica Neue와 어울리는 macOS 기본 글꼴 Apple SD Gothic Neo로 표시됩니다.
@@ -227,6 +253,8 @@ graph LR
 | <kbd>Shift</kbd> + 방향키                           | 화살 보유 상태 표시          | 해당 방향으로 화살 발사 (1회, 같은 방 안에서만 날아감).             |
 |                    <kbd>G</kbd>                     | **Grab gold**                | 현재 칸의 Gold를 획득합니다. |
 |                    <kbd>C</kbd>                     | **Enter door / Exit**        | 수동 조작 시 Gold 유무와 관계없이 C 또는 버튼으로 문 통과·출구 탈출을 확인합니다. AI는 문을 자동 통과하며, Gold를 소지한 경우에만 자동 탈출합니다. 입구로는 나갈 수 없습니다. |
+|                    <kbd>F1</kbd>                    | **Analytics**                | 개발자 분석 패널을 엽니다. |
+|                    <kbd>F2</kbd>                    | **Replays**                  | 저장된 게임 리플레이 뷰어를 엽니다. |
 |                   <kbd>TAB</kbd>                    | **Reveal map** 스위치 (방 카드 상단) | 안개를 걷고 전체 맵의 실제 상태를 표시합니다.                |
 |                    <kbd>L</kbd>                     | **EN / 한국어**              | 인터페이스 언어 전환.                                               |
 |                    <kbd>T</kbd>                     | **Dark theme** 스위치        | 라이트 / 다크 테마 전환.                                            |
@@ -240,7 +268,7 @@ Agent 패널의 **Analytics** 버튼(또는 <kbd>F1</kbd>)을 누르면 드래�
 
 - **Current game**: 결과, 걸음 수, 탐색률, 결정당 사고 시간(평균/최대 ms), 위험 이동 횟수, 문 통과, 화살 사용, 경과 시간
 - **Session**: 이번 실행에서 끝난 게임 수, 승률, Pit/Wumpus 사망률, 평균 점수·걸음·탐색률
-- **Benchmark**: 선택한 알고리즘으로 50/100/250 게임을 그래픽 없이 실행. **모든 알고리즘이 같은 맵 세트**에서 테스트되므로 결과를 바로 비교할 수 있습니다.
+- **Benchmark**: `game/algorithms.py`에 등록된 Agent 구현을 50/100/250 게임 동안 그래픽 없이 실행합니다. **모든 Agent가 같은 맵 세트**에서 테스트되므로 결과를 바로 비교할 수 있습니다.
 
 자신의 알고리즘을 비교하려면 `game/algorithms.py`에서 `Agent`를 상속해 `decide_next_action`을 구현하고 `ALGORITHMS`에 추가하세요. 예시로 위험을 전혀 감수하지 않는 `Safe only` 기준 알고리즘이 들어 있습니다.
 
@@ -259,7 +287,7 @@ python -m game.benchmark --games 200 --rooms 3
 | 🐍 **Python 3.10+** | Core Logic        | 게임 환경 및 AI Agent 구현                                  |
 | 🎮 **pygame-ce 2.5.8** | Graphics & Audio  | 60 FPS 2D 렌더링, Retina(High-DPI) 지원, 입력 이벤트 처리 |
 | 🧠 **Symbolic AI**  | Knowledge & Logic | 명제 논리(Propositional Logic), 지식 베이스 추론            |
-| 🧭 **Algorithms**   | Pathfinding       | BFS(너비 우선 탐색) 최단 경로 알고리즘, Risk Score 휴리스틱 |
+| 🧭 **Algorithms**   | Pathfinding       | BFS, UCS, A* 경로 탐색 및 Risk Score 기반 위험 평가 |
 
 ---
 
