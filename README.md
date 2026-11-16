@@ -44,6 +44,7 @@ wumpus-world/
 | `game/agent.py`        | 🤖 AI Agent 상태 관리, 인지-추론-행동 루프, 에피소드 사망 기억(Episodic Memory), BFS 최단 경로 탐색 |
 | `game/rules.py`        | 📜 명제 논리 기반 지식 추론, 과거 실패 기억 통합(`death_memory`), 위험도 점수(`Risk Score`) 산출   |
 | `game/scoring.py`      | 🎯 이동·사격·사망·골드 점수 및 원인별 고정 사망 기억 페널티(`calculate_memory_penalty`) 산정       |
+| `game/search.py`       | 🔎 공통 BFS·UCS·A* 그래프 탐색 엔진 및 탐색 결과 통계                         |
 | `game/game_manager.py` | ⚙️ World와 Agent 상호작용 동기화, 사망 원인 기록(`record_death`), Replay 메모리 보존 제어          |
 | `game/replays.py`      | 📼 완료된 게임 JSONL 저장 및 복원 엔진                                                             |
 | `ui/renderer.py`       | 🖥️ 현재 방 화면, 던전 미니맵, 시야 안개(Fog of War), AI 사고 과정 및 Agent 패널 렌더링          |

@@ -1,6 +1,3 @@
-from heapq import heappop, heappush
-from itertools import count
-
 from game.scoring import (
     MOVE_COST,
     SHOT_COST,
@@ -11,6 +8,7 @@ from game.scoring import (
 )
 from game.rules import deduce_knowledge, calculate_cell_risk
 from game.i18n import T, Join
+from game.search import SEARCH_FUNCTIONS, astar_search
 
 
 class Agent:
@@ -27,6 +25,9 @@ class Agent:
     """
 
     ALLOW_RISK = True
+    # A* is the primary planner. BFS and UCS remain available for baselines
+    # and experiments through set_search_algorithm().
+    SEARCH_ALGORITHM = "astar"
 
     def __init__(self, layout, death_memory=None):
         # Read only for the entrance, the room size and cell names in messages.
@@ -42,6 +43,8 @@ class Agent:
         self.has_arrow = True
         self.is_alive = True
         self.escaped = False
+        self.search_algorithm = self.SEARCH_ALGORITHM
+        self.last_search = None
 
         # Cross-episode memory (persists across map replays)
         self.death_memory = (
@@ -160,6 +163,26 @@ class Agent:
             missed_shots=self.missed_shots,
         )
 
+    def set_search_algorithm(self, algorithm):
+        """Select BFS, UCS or A* for route planning and return the new value."""
+        if algorithm not in SEARCH_FUNCTIONS:
+            raise ValueError(f"Unknown search algorithm: {algorithm}")
+        self.search_algorithm = algorithm
+        return self.search_algorithm
+
+    def _route_heuristic(self, state, goals):
+        """Admissible Manhattan lower bound for goals in the current room.
+
+        Cross-room routes can use learned door teleports, so returning zero for
+        those goals avoids overestimating their true cost.
+        """
+        pos = state[0]
+        same_room = [goal for goal in goals if self._room(goal) == self._room(pos)]
+        if not same_room:
+            return 0
+        r, c = pos
+        return min(abs(r - gr) + abs(c - gc) for gr, gc in same_room)
+
     def _route_to(self, goals, safe, allow_shot=False):
         """Cheapest known-safe action sequence, including positioning and one sure shot.
 
@@ -183,17 +206,9 @@ class Agent:
         else:
             targets = set()
         can_shoot = allow_shot and self.has_arrow and bool(targets)
-        serial = count()
-        queue = [(0, 0, next(serial), self.position, [])]
-        best = {(self.position, 0): 0}
-        while queue:
-            cost, shots, _, pos, actions = heappop(queue)
-            if cost != best.get((pos, shots)):
-                continue
-            if pos in goals:
-                return cost, actions, pos
+        def successors(state):
+            pos, shots = state
             allowed = after_shot if shots else safe
-            options = []
             for target in self.neighbors(pos):
                 if target not in allowed:
                     continue
@@ -201,18 +216,25 @@ class Agent:
                 if target in self.known_doors and self._room(target) == self._room(pos):
                     # Stepping onto a known door from its own room carries us through it.
                     landing = self.known_doors[target]
-                options.append((MOVE_COST, shots, landing, {"type": "MOVE", "to": target}))
+                yield (landing, shots), {"type": "MOVE", "to": target}, MOVE_COST
+
             if can_shoot and not shots:
                 direction = self._sure_shot_direction(pos, targets)
                 if direction:
-                    options.append((SHOT_COST, 1, pos, {"type": "SHOOT", "direction": direction}))
-            for extra, next_shots, landing, action in options:
-                next_cost = cost + extra
-                state = (landing, next_shots)
-                if next_cost < best.get(state, float("inf")):
-                    best[state] = next_cost
-                    heappush(queue, (next_cost, next_shots, next(serial), landing, actions + [action]))
-        return None
+                    yield (pos, 1), {"type": "SHOOT", "direction": direction}, SHOT_COST
+
+        start = (self.position, 0)
+        is_goal = lambda state: state[0] in goals
+        search = SEARCH_FUNCTIONS[self.search_algorithm]
+        if self.search_algorithm == "astar":
+            result = astar_search(start, is_goal, successors,
+                                  lambda state: self._route_heuristic(state, goals))
+        else:
+            result = search(start, is_goal, successors)
+        self.last_search = result
+        if result is None:
+            return None
+        return result.cost, list(result.actions), result.state[0]
 
     def find_shortest_path(self, target_cells, allowed_cells):
         """Fewest MOVE actions, counting automatic door crossings correctly."""
