@@ -25,9 +25,8 @@ class Agent:
     """
 
     ALLOW_RISK = True
-    # A* is the primary planner. BFS and UCS remain available for baselines
-    # and experiments through set_search_algorithm().
-    SEARCH_ALGORITHM = "astar"
+    # The selector chooses a search algorithm per planning task.
+    SEARCH_ALGORITHM = "auto"
 
     def __init__(self, layout, death_memory=None):
         # Read only for the entrance, the room size and cell names in messages.
@@ -44,6 +43,7 @@ class Agent:
         self.is_alive = True
         self.escaped = False
         self.search_algorithm = self.SEARCH_ALGORITHM
+        self.last_search_algorithm = None
         self.last_search = None
 
         # Cross-episode memory (persists across map replays)
@@ -163,12 +163,19 @@ class Agent:
             missed_shots=self.missed_shots,
         )
 
-    def set_search_algorithm(self, algorithm):
-        """Select BFS, UCS or A* for route planning and return the new value."""
-        if algorithm not in SEARCH_FUNCTIONS:
-            raise ValueError(f"Unknown search algorithm: {algorithm}")
-        self.search_algorithm = algorithm
-        return self.search_algorithm
+    def _select_search_algorithm(self, goals, allow_shot, can_shoot):
+        """Choose a planner for the current route instead of globally.
+
+        The selector is deliberately small and explainable:
+        - BFS for a multi-goal, move-only safe exploration task;
+        - UCS when the route includes a possible shot and therefore mixed costs;
+        - A* for a directed goal with a useful heuristic.
+        """
+        if allow_shot and can_shoot:
+            return "ucs"
+        if len(goals) > 1:
+            return "bfs"
+        return "astar"
 
     def _route_heuristic(self, state, goals):
         """Admissible Manhattan lower bound for goals in the current room.
@@ -225,8 +232,10 @@ class Agent:
 
         start = (self.position, 0)
         is_goal = lambda state: state[0] in goals
-        search = SEARCH_FUNCTIONS[self.search_algorithm]
-        if self.search_algorithm == "astar":
+        algorithm = self._select_search_algorithm(goals, allow_shot, can_shoot)
+        self.last_search_algorithm = algorithm
+        search = SEARCH_FUNCTIONS[algorithm]
+        if algorithm == "astar":
             result = astar_search(start, is_goal, successors,
                                   lambda state: self._route_heuristic(state, goals))
         else:
