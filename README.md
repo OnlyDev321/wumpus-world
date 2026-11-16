@@ -30,7 +30,7 @@ wumpus-world/
 │   ├── controls.py          # 🎛️ 하단 컨트롤 바 (버튼, 스위치, 방 개수 선택)
 │   ├── widgets.py           # 🧩 Button / Switch / Segmented / Stepper 위젯
 │   ├── painter.py           # ✏️ 텍스트·도형·태그 드로잉 헬퍼
-│   ├── theme.py             # 🌗 Arco Design 스타일 라이트/다크 테마 토큰
+│   ├── theme.py             # 🌗 라이트/다크 테마 토큰
 │   └── sound_manager.py     # 🔊 저지연 오디오 시스템 (Breeze, Stench, Glitter, Scream, Door, Pit, Wumpus, Gold)
 └── assets/                  # 🖼️ 고화질 2D 스프라이트 및 사운드 에셋
     ├── hero.png, door.png, floor.png, wumpus.png, pit.png, gold.png...
@@ -224,7 +224,7 @@ graph LR
 
 ## 🖥️ UI & Visualization 기능
 
-[Arco Design System](https://www.figma.com/community/file/1053233047330321743/arco-design-system) 스타일의 깔끔한 카드 레이아웃입니다.
+Pygame으로 구현한 카드 기반의 깔끔한 UI 레이아웃입니다.
 
 - **좌측 상단 – 방 화면**: Agent가 있는 방을 픽셀 아트로 표시. 미탐색 칸은 안개, 추론된 안전 칸은 `SAFE`, 확정된 위험은 `PIT` / `WUMPUS` 태그. 다른 방으로 통하는 문은 가장자리의 파란 `R2` 표시.
 - **우측 상단 – 던전 미니맵**: 모든 방과 문, 방문한 칸, 입구/출구, Agent 위치. 방을 클릭하면 해당 방을 미리 볼 수 있습니다.
