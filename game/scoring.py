@@ -5,27 +5,27 @@ SHOT_COST = 10
 DEATH_COST = 1000
 GOLD_REWARD = 1000
 
-# Base memory penalty costs per room floor (escalates as Base * Floor)
-PIT_BASE_PENALTY = 20
-WUMPUS_BASE_PENALTY = 50
+# Fixed memory penalty costs by cause. These do not depend on the room/floor.
+PIT_PENALTY = 50
+WUMPUS_PENALTY = 100
 
 
-def calculate_memory_penalty(death_memory, world):
+def calculate_memory_penalty(death_memory, world=None):
     """
-    Calculates starting memory debt penalty for cross-episode death memory:
-    Penalty scales with the room floor (1-based):
-      - Pit: PIT_BASE_PENALTY * floor (Room 1: 20, Room 2: 40, ..., Room 6: 120)
-      - Wumpus: WUMPUS_BASE_PENALTY * floor (Room 1: 50, Room 2: 100, ..., Room 6: 300)
+    Calculates the starting penalty for cross-episode death memory.
+
+    The penalty is fixed by the cause of death and independent of the
+    room/floor where the hazard was found:
+      - Pit: 50 points per remembered pit
+      - Wumpus: 100 points
+
+    ``world`` remains optional for compatibility with existing callers.
     """
     if not death_memory:
         return 0
     total = 0
-    for pit in death_memory.get("pits", ()):
-        floor = world.room_of(pit) + 1 if hasattr(world, "room_of") else 1
-        total += PIT_BASE_PENALTY * floor
-    wumpus = death_memory.get("wumpus")
-    if wumpus:
-        floor = world.room_of(wumpus) + 1 if hasattr(world, "room_of") else 1
-        total += WUMPUS_BASE_PENALTY * floor
+    total += PIT_PENALTY * len(death_memory.get("pits", ()))
+    if death_memory.get("wumpus") is not None:
+        total += WUMPUS_PENALTY
     return total
 

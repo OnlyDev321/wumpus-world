@@ -5,8 +5,8 @@ from game.scoring import (
     MOVE_COST,
     SHOT_COST,
     DEATH_COST,
-    PIT_BASE_PENALTY,
-    WUMPUS_BASE_PENALTY,
+    PIT_PENALTY,
+    WUMPUS_PENALTY,
     calculate_memory_penalty,
 )
 from game.rules import deduce_knowledge, calculate_cell_risk
@@ -130,15 +130,11 @@ class Agent:
         if self.death_memory["pits"]:
             pit_descs = []
             for p in sorted(self.death_memory["pits"]):
-                floor = self._map.room_of(p) + 1 if hasattr(self._map, "room_of") else 1
-                cost = PIT_BASE_PENALTY * floor
-                pit_descs.append(f"{self.name(p)} (-{cost})")
+                pit_descs.append(f"{self.name(p)} (-{PIT_PENALTY})")
             items.append(T("mem.pit", cells=", ".join(pit_descs)))
         if self.death_memory["wumpus"]:
             w = self.death_memory["wumpus"]
-            floor = self._map.room_of(w) + 1 if hasattr(self._map, "room_of") else 1
-            cost = WUMPUS_BASE_PENALTY * floor
-            items.append(T("mem.wumpus", cell=f"{self.name(w)} (-{cost})"))
+            items.append(T("mem.wumpus", cell=f"{self.name(w)} (-{WUMPUS_PENALTY})"))
         return Join(items, "; ") if items else T("mem.none")
 
     def perceive(self, current_percepts):
