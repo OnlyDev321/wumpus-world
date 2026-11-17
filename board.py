@@ -7,7 +7,7 @@ Left: a grid of cells. Right: a palette of icons.
 - Right-click an icon on the map to remove it.
 - Cells are drawn like the game: same sprite sizes and layers. Breeze and stench
   are pulled to the edge that faces a neighbouring pit / Wumpus, as in the game.
-- Keys: + / - grid size, C clear, T dark theme, Esc quit.
+- Keys: + / - grid size, C clear, T dark theme, E textbook pit-probability example, Esc quit.
 
 Run: python board.py
 """
@@ -41,6 +41,40 @@ SMALL = {"breeze", "stench", "glitter"}
 # Draw order, bottom to top (same as the game: door, wumpus, gold, percepts, hero)
 LAYER = {"pit": 0, "door": 1, "wumpus": 2, "gold": 3, "glitter": 4, "breeze": 5, "stench": 5, "arrow": 6, "hero": 7}
 DIRS = {"UP": (-1, 0), "DOWN": (1, 0), "LEFT": (0, -1), "RIGHT": (0, 1)}
+
+# Textbook example (key E). Cells are [x, y] with [1,1] in the lower left corner, as in the book.
+PIT_PRIOR = 0.2
+EXAMPLE_SIZE = 4
+EXAMPLE_VISITED = [(1, 1), (1, 2), (2, 1)]
+EXAMPLE_BREEZY = [(1, 2), (2, 1)]
+
+
+def xy_to_cell(x, y, size):
+    return (size - y, x - 1)
+
+
+def neighbours(cell, size):
+    r, c = cell
+    return [(r + dr, c + dc) for dr, dc in DIRS.values() if 0 <= r + dr < size and 0 <= c + dc < size]
+
+
+def pit_probabilities(size, visited, breezy, prior=PIT_PRIOR):
+    """
+    P(pit) for each unknown cell next to a visited one, by enumerating every pit layout
+    of those cells and keeping the ones that match the breezes. Other cells keep the prior.
+    """
+    frontier = sorted({n for v in visited for n in neighbours(v, size)} - set(visited))
+    weights = {cell: [0.0, 0.0] for cell in frontier}  # cell -> [weight with pit, weight without]
+    for layout in itertools.product((True, False), repeat=len(frontier)):
+        pits = {cell for cell, pit in zip(frontier, layout) if pit}
+        if any((v in breezy) != any(n in pits for n in neighbours(v, size)) for v in visited):
+            continue
+        w = 1.0
+        for pit in layout:
+            w *= prior if pit else 1 - prior
+        for cell, pit in zip(frontier, layout):
+            weights[cell][0 if pit else 1] += w
+    return {cell: yes / (yes + no) for cell, (yes, no) in weights.items()}
 
 
 class Sprites:
@@ -106,6 +140,7 @@ class Board:
         self.mouse = (0, 0)
         self.pos = {}  # item id -> current drawn center (moves smoothly toward its target)
         self._ids = itertools.count()
+        self.example = None  # {"visited": set of cells, "probs": {cell: P(pit)}} while the example is shown
 
         self.map_card = pygame.Rect(20, 20, 820, 760)
         self.side_card = pygame.Rect(856, 20, 324, 760)
@@ -242,6 +277,19 @@ class Board:
         self.size = max(MIN_SIZE, min(MAX_SIZE, self.size + delta))
         self.cells = {k: v for k, v in self.cells.items() if k[0] < self.size and k[1] < self.size}
         self.pos.clear()
+        self.example = None
+
+    def load_example(self):
+        """Textbook position: agent visited [1,1], [1,2], [2,1]; breeze in [1,2] and [2,1]."""
+        self.size = EXAMPLE_SIZE
+        self.cells.clear()
+        self.pos.clear()
+        visited = [xy_to_cell(x, y, self.size) for x, y in EXAMPLE_VISITED]
+        breezy = [xy_to_cell(x, y, self.size) for x, y in EXAMPLE_BREEZY]
+        self.place({"key": "hero", "id": next(self._ids)}, visited[0])
+        for cell in breezy:
+            self.place({"key": "breeze", "id": next(self._ids)}, cell)
+        self.example = {"visited": set(visited), "probs": pit_probabilities(self.size, visited, breezy)}
 
     def place(self, item, cell):
         items = self.cells.setdefault(cell, [])
@@ -266,6 +314,7 @@ class Board:
         elif name == "clear":
             self.cells.clear()
             self.pos.clear()
+            self.example = None
         elif name == "theme":
             self.p.theme = LIGHT if self.p.theme is DARK else DARK
 
@@ -304,6 +353,8 @@ class Board:
                 self.press_button("clear")
             elif event.key == pygame.K_t:
                 self.press_button("theme")
+            elif event.key == pygame.K_e:
+                self.load_example()
 
     def cursor(self):
         if self.drag:
@@ -361,15 +412,45 @@ class Board:
                         p.blit(sprite, topleft=rect.topleft)
                     else:
                         self._draw_item(item, anchor, point, sprite)
+                if self.example:
+                    self._draw_example_cell((row, col), rect)
                 if hover == (row, col):
                     p.alpha_box(rect, (*t["primary"], 70), radius=4)
                     p.box(rect, None, radius=4, border=t["primary"], border_width=2)
 
         # Coordinates: row numbers on the left, column numbers on top (1-based, like the game)
         g, c = self.grid_rect, self.cell_size
-        for i in range(self.size):
+        for i in range(self.size if not self.example else 0):  # the example labels cells [x,y] itself
             p.text(str(i + 1), (g.x - 12, g.y + i * c + c // 2), 13, t["text3"], anchor="center")
             p.text(str(i + 1), (g.x + i * c + c // 2, g.y - 14), 13, t["text3"], anchor="center")
+
+    def _draw_example_cell(self, cell, rect):
+        """Book coordinates on every cell; visited cells marked OK, unknown ones show P(pit)."""
+        p, t = self.p, self.p.theme
+        x, y = cell[1] + 1, self.size - cell[0]
+        if cell in self.example["visited"]:
+            p.tag("OK", (rect.right - 6, rect.y + 6), t["success"], t["success_light"], anchor="topright")
+        else:
+            prob = self.example["probs"].get(cell, PIT_PRIOR)
+            frontier = cell in self.example["probs"]
+            p.alpha_box(rect, (*t["danger"], round(40 + 150 * prob)) if frontier else (*t["fog"], 170), radius=4)
+            p.text(f"{prob:.2f}", (rect.centerx, rect.centery - 6), 30 if frontier else 22,
+                   t["text1"] if frontier else t["text3"], weight="bold", anchor="center")
+            p.text("P(pit)", (rect.centerx, rect.centery + 20), 12, t["text2"] if frontier else t["text3"], anchor="center")
+        p.text(f"[{x},{y}]", (rect.x + 8, rect.y + 6), 12, t["text3"], weight="medium")
+
+    def _example_lines(self):
+        cell = lambda x, y: xy_to_cell(x, y, self.size)
+        probs = self.example["probs"]
+        return [
+            "Visited [1,1], [1,2], [2,1]",
+            "Breeze in [1,2] and [2,1]",
+            f"Each cell has a pit with p = {PIT_PRIOR}",
+            f"[1,3]:  0.072 / 0.232 ≈ {probs[cell(1, 3)]:.2f}",
+            f"[2,2]:  0.200 / 0.232 ≈ {probs[cell(2, 2)]:.2f}",
+            f"[3,1]:  same as [1,3] ≈ {probs[cell(3, 1)]:.2f}",
+            f"Other cells keep the prior {PIT_PRIOR:.2f}",
+        ]
 
     def _draw_side(self):
         p, t = self.p, self.p.theme
@@ -394,14 +475,20 @@ class Board:
             "    facing a pit / the Wumpus",
         ]
         y = self.palette[-1][0].bottom + 24
-        p.text("How to use", (card.x + 24, y), 14, weight="bold")
+        if self.example:
+            p.text("Textbook example: pit odds", (card.x + 24, y), 14, weight="bold")
+            for i, line in enumerate(self._example_lines()):
+                p.text(line, (card.x + 24, y + 28 + i * 24), 13, t["text2"])
+            tips = []
+        else:
+            p.text("How to use", (card.x + 24, y), 14, weight="bold")
         for i, tip in enumerate(tips):
             if tip.startswith(" "):  # continuation line, aligned with the text above
                 p.text(tip.strip(), (card.x + 24 + p.text_width("•  ", 13), y + 28 + i * 24), 13, t["text2"])
             else:
                 p.text(f"•  {tip}", (card.x + 24, y + 28 + i * 24), 13, t["text2"])
 
-        p.text("Grid size  ·  Clear (C)  ·  Theme (T)", (card.x + 24, card.bottom - 86), 12, t["text3"])
+        p.text("Grid size  ·  Clear (C)  ·  Theme (T)  ·  Example (E)", (card.x + 24, card.bottom - 86), 12, t["text3"])
         labels = {"minus": "−", "plus": "+", "clear": "Clear", "theme": "Light" if p.theme is DARK else "Dark"}
         for rect, name in self.buttons:
             hovered = rect.collidepoint(self.mouse)
