@@ -12,6 +12,7 @@
 wumpus-world/
 ├── main.py                  # 🚀 프로그램 진입점 및 이벤트 루프
 ├── replay_viewer.py         # 🎬 저장된 게임 리플레이 뷰어
+├── board.py                 # 🧩 데모·강의용 자유 배치 설명 보드
 ├── requirements.txt         # 📦 의존성 패키지 (pygame-ce 2.5.8)
 ├── game/                    # 🎮 핵심 게임 로직 & AI 엔진
 │   ├── agent.py             # 🤖 AI Agent 클래스 (Perception, Memory, Logic, Risk, Planning)
@@ -31,11 +32,14 @@ wumpus-world/
 │   ├── widgets.py           # 🧩 Button / Switch / Segmented / Stepper 위젯
 │   ├── painter.py           # ✏️ 텍스트·도형·태그 드로잉 헬퍼
 │   ├── theme.py             # 🌗 라이트/다크 테마 토큰
+│   ├── paths.py             # 📁 assets 절대 경로 헬퍼 (어느 작업 디렉터리에서도 실행 가능)
 │   └── sound_manager.py     # 🔊 저지연 오디오 시스템 (Breeze, Stench, Glitter, Scream, Door, Pit, Wumpus, Gold)
-└── assets/                  # 🖼️ 고화질 2D 스프라이트 및 사운드 에셋
-    ├── hero.png, door.png, floor.png, wumpus.png, pit.png, gold.png...
-    └── sounds/              # 🎵 16-bit PCM WAV 사운드 이펙트
-        ├── breeze.wav, stench.wav, glitter.wav, scream.wav, door.wav, pit.wav, wumpus.wav, gold.wav
+├── assets/                  # 🖼️ 고화질 2D 스프라이트 및 사운드 에셋
+│   ├── hero.png, door.png, floor.png, wumpus.png, pit.png, gold.png...
+│   ├── fonts/               # 🔤 Pretendard 폰트 (Regular / Medium / Bold)
+│   └── sounds/              # 🎵 16-bit PCM WAV 사운드 이펙트
+│       ├── breeze.wav, stench.wav, glitter.wav, scream.wav, door.wav, pit.wav, wumpus.wav, gold.wav
+└── replays/                 # 💾 최근 게임 기록 (recent_games.json, 로컬 전용·Git 제외)
 ```
 
 | 모듈 / 파일            | 역할                                                                                              |
@@ -47,10 +51,12 @@ wumpus-world/
 | `game/scoring.py`      | 🎯 이동·사격·사망·골드 점수 및 원인별 고정 사망 기억 페널티(`calculate_memory_penalty`) 산정       |
 | `game/search.py`       | 🔎 공통 BFS·UCS·A* 그래프 탐색 엔진 및 경로 탐색 결과(`cost`, `expanded`) 반환 |
 | `game/game_manager.py` | ⚙️ World와 Agent 상호작용 동기화, 사망 원인 기록(`record_death`), Replay 메모리 보존 제어          |
-| `game/replays.py`      | 📼 완료된 게임 JSONL 저장 및 복원 엔진                                                             |
+| `game/replays.py`      | 📼 완료된 게임을 `replays/recent_games.json`에 저장(최근 10판 유지) 및 복원                         |
 | `ui/renderer.py`       | 🖥️ 현재 방 화면, 던전 미니맵, 시야 안개(Fog of War), AI 사고 과정 및 Agent 패널 렌더링          |
 | `ui/controls.py`       | 🎛️ 마우스로 조작하는 하단 컨트롤 바 (AI 실행, 맵, 수동 조작, 보기 설정)                          |
 | `ui/sound_manager.py`  | 🔊 지각 신호(Breeze/Stench/Glitter), 탈출(Door), 사망(Pit/Wumpus), 비명(Scream) 저지연 오디오 재생 엔진 |
+| `replay_viewer.py`     | 🎬 저장된 최근 게임 목록 표시 및 재생 (게임 창의 Replays 버튼 / <kbd>F2</kbd> 또는 단독 실행)       |
+| `board.py`             | 🧩 아이콘을 드래그해 맵을 자유롭게 구성하는 설명용 보드 (+/- 크기, C 초기화, T 테마)                |
 | `assets/`              | 🎨 던전 타일, 캐릭터, 몬스터, 지각 신호 스프라이트 및 효과음(.wav) 리소스                           |
 
 ---
@@ -165,7 +171,7 @@ Perception → Memory → Logic → Risk evaluation → Planning → Action
   - A*는 UCS의 비용에 heuristic을 더해 목표가 명확한 경로를 빠르게 찾습니다.
 - **Action**: `MOVE`, `SHOOT`, `GRAB`, `CLIMB`, `PASS` 중 하나를 선택합니다.
 
-즉, **Logic은 Agent가 세계를 이해하도록 하고, Risk evaluation은 위험을 판단하도록 하며, BFS/UCS/A*는 실제 이동 경로를 계획하도록 합니다.** Agent는 여러 개의 안전 목표를 빠르게 탐색할 때 BFS, 이동과 사격처럼 비용이 다른 경로를 비교할 때 UCS, 목표가 명확한 경로를 찾을 때 A*를 선택합니다. 안전한 경로가 없을 때는 별도의 Risk Score로 frontier 후보를 비교합니다.
+즉, **Logic은 Agent가 세계를 이해하도록 하고, Risk evaluation은 위험을 판단하도록 하며, BFS/UCS/A*는 실제 이동 경로를 계획하도록 합니다.** 선택 규칙(`Agent._select_search_algorithm`)은 단순합니다: 경로에 사격이 포함될 수 있으면(화살 보유) **UCS**, 목표 칸이 여러 개인 이동 전용 탐색이면 **BFS**, 목표가 하나로 정해진 경로면 **A***를 사용합니다. 안전한 경로가 없을 때는 별도의 Risk Score로 frontier 후보를 비교합니다.
 
 경로 탐색 방식은 자동 선택(`auto`)으로 고정되어 있습니다. Agent가 현재 목표와 행동 비용을 보고 BFS, UCS, A* 중 하나를 선택합니다. 화면의 Agent 스위처(`Logic + risk`, `Safe only`)는 탐색 알고리즘이 아니라 Agent의 행동 정책을 바꾸는 기능입니다.
 
@@ -330,6 +336,14 @@ pip install -r requirements.txt
 
 ```bash
 python main.py
+```
+
+### 5. 기타 도구 (선택)
+
+```bash
+python replay_viewer.py   # 저장된 최근 게임 리플레이 보기
+python board.py           # 데모·강의용 설명 보드
+python -m game.benchmark --games 200 --rooms 3   # 그래픽 없는 Agent 벤치마크
 ```
 
 ---
