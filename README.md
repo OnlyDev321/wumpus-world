@@ -2,7 +2,7 @@
 
 ### 불확실한 환경에서 살아남는 AI Agent
 
-여러 개의 4×4 방으로 이루어진 던전(방 개수 1~6개 선택)에서 AI Agent가 **Breeze, Stench, Glitter, Scream** 등의 환경 신호(Percept)를 수집하고, 기억과 논리를 이용해 위험을 피하면서 **Gold를 획득하고 무사히 탈출**하는 Agentic AI 프로젝트입니다. Agent는 상황에 따라 BFS, UCS, A* 중 알맞은 경로 탐색 알고리즘을 자동으로 선택합니다.
+여러 개의 4×4 방으로 이루어진 던전(방 개수 1~6개 선택)에서 AI Agent가 **Breeze, Stench, Glitter, Scream** 등의 환경 신호(Percept)를 수집하고, 기억과 논리를 이용해 위험을 피하면서 Gold를 찾고 탈출을 시도하는 Agentic AI 프로젝트입니다. Agent는 상황에 따라 BFS, UCS, A* 중 알맞은 경로 탐색 알고리즘을 자동으로 선택합니다. 환경은 부분 관측이지만, 이 프로젝트는 POMDP 최적 정책을 푸는 대신 명제 논리 추론과 위험도 기반 행동 규칙을 사용합니다.
 
 ---
 
@@ -12,6 +12,7 @@
 wumpus-world/
 ├── main.py                  # 🚀 프로그램 진입점 및 이벤트 루프
 ├── replay_viewer.py         # 🎬 저장된 게임 리플레이 뷰어
+├── board.py                 # 🧩 보드 셀과 격자 상태 표현
 ├── requirements.txt         # 📦 의존성 패키지 (pygame-ce 2.5.8)
 ├── game/                    # 🎮 핵심 게임 로직 & AI 엔진
 │   ├── agent.py             # 🤖 AI Agent 클래스 (Perception, Memory, Logic, Risk, Planning)
@@ -30,9 +31,11 @@ wumpus-world/
 │   ├── controls.py          # 🎛️ 하단 컨트롤 바 (버튼, 스위치, 방 개수 선택)
 │   ├── widgets.py           # 🧩 Button / Switch / Segmented / Stepper 위젯
 │   ├── painter.py           # ✏️ 텍스트·도형·태그 드로잉 헬퍼
+│   ├── paths.py             # 🧭 에셋 경로 해석 헬퍼
 │   ├── theme.py             # 🌗 라이트/다크 테마 토큰
 │   └── sound_manager.py     # 🔊 저지연 오디오 시스템 (Breeze, Stench, Glitter, Scream, Door, Pit, Wumpus, Gold)
-└── assets/                  # 🖼️ 고화질 2D 스프라이트 및 사운드 에셋
+└── assets/                  # 🖼️ 2D 스프라이트, 글꼴 및 사운드 에셋
+    ├── fonts/                # Pretendard 글꼴 파일
     ├── hero.png, door.png, floor.png, wumpus.png, pit.png, gold.png...
     └── sounds/              # 🎵 16-bit PCM WAV 사운드 이펙트
         ├── breeze.wav, stench.wav, glitter.wav, scream.wav, door.wav, pit.wav, wumpus.wav, gold.wav
@@ -127,9 +130,13 @@ AI Agent는 동굴을 탐험하며 각 칸에서 감각 정보(**Percept**)를 �
 |      🔷       | **Door (방 사이 문)**  | 이웃한 방을 연결. 양방향 이동 가능. 문과 그 주변 칸에는 위험 요소가 없음 |
 |      ❌       | **Pit (함정)**         | 빠지면 즉시 사망 및 게임 오버 (-1000점)                                 |
 |      👹       | **Wumpus (괴물)**      | 마주치면 즉시 사망 및 게임 오버 (-1000점). 화살로 사냥 가능             |
-|      🏹       | **Arrow (화살)**       | Agent가 단 1발 보유. 직선 경로로 날아가 Wumpus를 제거                   |
+|      🏹       | **Arrow (화살)**       | Agent가 단 1발 보유. 같은 방에서 직선으로 날아가 Wumpus를 제거합니다. 빗나간 화살이 지나간 칸은 Wumpus가 없는 것으로 기억합니다.                   |
 
-### 2. 점수 규칙 (Scoring System)
+### 2. 부분 관측과 맵 발견
+
+Agent는 시작 위치와 각 방의 크기(4×4)만 알고 시작합니다. 방의 총개수나 문 위치, 출구 위치, 위험 요소와 Gold 위치는 미리 알지 못합니다. 방은 실제로 진입하면서 발견하고, 문과 반대편 착지 위치는 문을 통과한 뒤 기억합니다. 출구는 해당 칸에 도착해 `Exit` 지각을 받은 뒤에야 알게 됩니다. Replay에서는 사망 원인 기억만 이어받으며, 방문 기록과 방·문 발견 정보는 다시 초기화됩니다. `Reveal map`은 화면 표시만 바꾸고 Agent의 지식에는 영향을 주지 않습니다.
+
+### 3. 점수 규칙 (Scoring System)
 
 - **Gold 획득 후 무사 탈출 (Victory)**: `+1,000점`
 - **매 행동당 이동 비용 (Step Penalty)**: `-1점`
@@ -169,7 +176,7 @@ Perception → Memory → Logic → Risk evaluation → Planning → Action
 
 경로 탐색 방식은 자동 선택(`auto`)으로 고정되어 있습니다. Agent가 현재 목표와 행동 비용을 보고 BFS, UCS, A* 중 하나를 선택합니다. 화면의 Agent 스위처(`Logic + risk`, `Safe only`)는 탐색 알고리즘이 아니라 Agent의 행동 정책을 바꾸는 기능입니다.
 
-Agent는 불확실한 부분 관측 환경(POMDP)에서 다음과 같은 **6단계 인지 순환 루프**를 거쳐 행동합니다.
+Agent는 부분 관측 환경에서 다음과 같은 **6단계 인지 순환 루프**를 거쳐 행동합니다. 여기서 부분 관측은 환경의 특성을 뜻하며, Agent가 POMDP 알고리즘이나 최적 정책 계산을 수행한다는 의미는 아닙니다.
 
 ```text
 [ 1. Perception ]  -->  [ 2. Memory ]  -->  [ 3. Logic ]
@@ -182,6 +189,7 @@ Agent는 불확실한 부분 관측 환경(POMDP)에서 다음과 같은 **6단�
 - **Safe Cells ($Safe = PitFree \cap WumpusFree$)**:
   - Breeze가 없는 방문 셀의 인접 칸은 모두 **Pit-Free**.
   - Stench가 없는 방문 셀의 인접 칸은 모두 **Wumpus-Free** (Wumpus 사망 시 전체 맵이 Wumpus-Free).
+  - Wumpus를 맞히지 못한 화살이 통과한 칸도 **Wumpus-Free**로 기록합니다.
 - **Wumpus 위치 확정 (Single Wumpus Assumption)**:
   - Wumpus는 세계에 단 1마리만 존재하므로, 감지된 Stench들의 후보군 교집합(Intersection) 크기가 1이 되는 순간 Wumpus의 좌표가 확정됩니다.
 - **Pit 위치 확정**:
@@ -193,7 +201,7 @@ Agent는 불확실한 부분 관측 환경(POMDP)에서 다음과 같은 **6단�
 2. **출구로 탈출 (`CLIMB`)**: Gold 소지 시 Search Strategy Selector가 선택한 경로 탐색으로 이동 비용(걸음당 1점)과 사격 비용(10점)을 합산해 출구 경로를 선택합니다. 사격 위치까지의 이동도 포함하며, 비용이 같으면 화살을 보존합니다. 문 진입과 자동 통과는 실제 게임처럼 한 번의 이동으로 계산합니다.
 3. **안전 구역 탐색 (`EXPLORE_SAFE`)**: 도달 가능한 안전 미방문 셀까지 최소 이동 경로로 탐색합니다. 안전하게 탐색할 곳이 있으면 Wumpus 위치를 알아도 사냥하러 가지 않습니다.
 4. **필요한 사격 (`SHOOT`)**: 확실히 명중하고 처치 후 구덩이 없는 유용한 경로가 열릴 때만 고려합니다. 안전 탐색이 막히면 사격으로 여는 경로 비용과 위험 진입의 예상 비용을 비교합니다. 구덩이가 계속 길을 막으면 사격하지 않습니다. 처치 보너스는 없습니다.
-5. **전역 경계선 위험 감수 (`GLOBAL_FRONTIER_RISK`)**: 안전 탐색 경로가 없으면 전체 경계선에서 `risk × 1000 + 이동 횟수`가 가장 작은 후보를 선택합니다. 사격으로 안전한 경로를 여는 편이 더 저렴하면 그 경로를 선택합니다. `Safe only`는 위험 진입을 하지 않습니다. Risk Score는 `calculate_cell_risk()`의 추정값이므로 전체 게임의 최적 점수를 보장하지는 않습니다.
+5. **경계선 위험 감수 (`RISKY_MOVE` / `NAVIGATE_TO_FRONTIER`)**: 안전 탐색 경로가 없으면 전체 경계선에서 `risk × 1000 + 이동 횟수`가 가장 작은 후보를 선택합니다. 현재 위치에서 바로 진입하면 `RISKY_MOVE`, 후보까지 이동해야 하면 `NAVIGATE_TO_FRONTIER` 행동을 사용합니다. 사격으로 안전한 경로를 여는 편이 더 저렴하면 그 경로를 선택합니다. `Safe only`는 위험 진입을 하지 않습니다. Risk Score는 `calculate_cell_risk()`의 추정값이므로 전체 게임의 최적 점수를 보장하지는 않습니다.
 6. **탐색 불가 (`TRAPPED`)**: 더 이상 탐색을 이어갈 경로가 없으면, 출구를 알고 안전한 경로가 있는 경우 출구로 후퇴해 Gold 없이 탈출합니다(`Escaped`). 출구로 갈 수 없으면 `TRAPPED` 상태로 종료. 그 외에는 Gold 없이 자동 탈출하지 않으며, Gold를 찾기 전에는 출구 칸도 탐색·통과할 수 있습니다.
 
 ### 3. 🧠 에피소드 사망 기억 및 적응 학습 (Episodic Memory & Failure Learning)
@@ -232,7 +240,7 @@ Pygame으로 구현한 카드 기반의 깔끔한 UI 레이아웃입니다.
 - **Agent 선택**: 미니맵 헤더의 스위처에서 `Logic + risk` 또는 `Safe only` Agent를 선택할 수 있습니다.
 - **하단 컨트롤 바**: 키보드 없이 마우스로 모든 조작 가능.
 - **라이트 / 다크 테마** 전환.
-- **언어 전환 (EN / 한국어)**: 하단 보기 그룹에서 전환. 버튼, 패널, AI 추론, 로그까지 모두 즉시 바뀝니다. 한국어는 Helvetica Neue와 어울리는 macOS 기본 글꼴 Apple SD Gothic Neo로 표시됩니다.
+- **언어 전환 (EN / 한국어)**: 하단 보기 그룹에서 전환. 버튼, 패널, AI 추론, 로그까지 모두 즉시 바뀝니다. 한국어와 영문 UI는 프로젝트에 포함된 Pretendard 글꼴을 사용합니다.
 
 ---
 
@@ -252,7 +260,7 @@ Pygame으로 구현한 카드 기반의 깔끔한 UI 레이아웃입니다.
 | <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | 방향 버튼                    | 수동 이동 (Manual 모드로 전환). 벽은 통과할 수 없고 문으로만 다른 방에 갈 수 있습니다.   |
 | <kbd>Shift</kbd> + 방향키                           | 화살 보유 상태 표시          | 해당 방향으로 화살 발사 (1회, 같은 방 안에서만 날아감).             |
 |                    <kbd>G</kbd>                     | **Grab gold**                | 현재 칸의 Gold를 획득합니다. |
-|                    <kbd>C</kbd>                     | **Enter door / Exit**        | 수동 조작 시 Gold 유무와 관계없이 C 또는 버튼으로 문 통과·출구 탈출을 확인합니다. AI는 문을 자동 통과하며, Gold를 소지한 경우에만 자동 탈출합니다. 입구로는 나갈 수 없습니다. |
+|                    <kbd>C</kbd>                     | **Enter door / Exit**        | 수동 조작 시 Gold 유무와 관계없이 C 또는 버튼으로 문 통과·출구 탈출을 확인합니다. AI는 문을 자동 통과합니다. Gold를 가진 채 출구에 도착하면 자동 탈출하고, 탐색이 막혔을 때 출구를 알고 안전하게 돌아갈 수 있으면 Gold 없이도 탈출할 수 있습니다. 입구로는 나갈 수 없습니다. |
 |                    <kbd>F1</kbd>                    | **Analytics**                | 개발자 분석 패널을 엽니다. |
 |                    <kbd>F2</kbd>                    | **Replays**                  | 저장된 게임 리플레이 뷰어를 엽니다. |
 |                   <kbd>TAB</kbd>                    | **Reveal map** 스위치 (방 카드 상단) | 안개를 걷고 전체 맵의 실제 상태를 표시합니다.                |
