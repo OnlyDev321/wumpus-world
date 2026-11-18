@@ -8,7 +8,7 @@ from game.scoring import (
 )
 from game.rules import deduce_knowledge, calculate_cell_risk
 from game.i18n import T, Join
-from game.search import SEARCH_FUNCTIONS, astar_search
+from game.search import SEARCH_FUNCTIONS
 
 
 class Agent:
@@ -25,8 +25,6 @@ class Agent:
     """
 
     ALLOW_RISK = True
-    # The selector chooses a search algorithm per planning task.
-    SEARCH_ALGORITHM = "auto"
 
     def __init__(self, layout, death_memory=None):
         # Read only for the entrance, the room size and cell names in messages.
@@ -42,10 +40,6 @@ class Agent:
         self.has_arrow = True
         self.is_alive = True
         self.escaped = False
-        self.search_algorithm = self.SEARCH_ALGORITHM
-        self.last_search_algorithm = None
-        self.last_search = None
-
         # Cross-episode memory (persists across map replays)
         self.death_memory = (
             {"pits": set(death_memory.get("pits", set())), "wumpus": death_memory.get("wumpus")}
@@ -166,29 +160,12 @@ class Agent:
     def _select_search_algorithm(self, goals, allow_shot, can_shoot):
         """Choose a planner for the current route instead of globally.
 
-        The selector is deliberately small and explainable:
-        - BFS for a multi-goal, move-only safe exploration task;
-        - UCS when the route includes a possible shot and therefore mixed costs;
-        - A* for a directed goal with a useful heuristic.
+        UCS handles routes that may include a shot, whose cost differs from a move.
+        BFS handles move-only routes where every action has the same cost.
         """
         if allow_shot and can_shoot:
             return "ucs"
-        if len(goals) > 1:
-            return "bfs"
-        return "astar"
-
-    def _route_heuristic(self, state, goals):
-        """Admissible Manhattan lower bound for goals in the current room.
-
-        Cross-room routes can use learned door teleports, so returning zero for
-        those goals avoids overestimating their true cost.
-        """
-        pos = state[0]
-        same_room = [goal for goal in goals if self._room(goal) == self._room(pos)]
-        if not same_room:
-            return 0
-        r, c = pos
-        return min(abs(r - gr) + abs(c - gc) for gr, gc in same_room)
+        return "bfs"
 
     def _route_to(self, goals, safe, allow_shot=False):
         """Cheapest known-safe action sequence, including positioning and one sure shot.
@@ -233,14 +210,8 @@ class Agent:
         start = (self.position, 0)
         is_goal = lambda state: state[0] in goals
         algorithm = self._select_search_algorithm(goals, allow_shot, can_shoot)
-        self.last_search_algorithm = algorithm
         search = SEARCH_FUNCTIONS[algorithm]
-        if algorithm == "astar":
-            result = astar_search(start, is_goal, successors,
-                                  lambda state: self._route_heuristic(state, goals))
-        else:
-            result = search(start, is_goal, successors)
-        self.last_search = result
+        result = search(start, is_goal, successors)
         if result is None:
             return None
         return result.cost, list(result.actions), result.state[0]

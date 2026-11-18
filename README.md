@@ -2,7 +2,7 @@
 
 ### 불확실한 환경에서 살아남는 AI Agent
 
-여러 개의 4×4 방으로 이루어진 던전(방 개수 1~6개 선택)에서 AI Agent가 **Breeze, Stench, Glitter, Scream** 등의 환경 신호(Percept)를 수집하고, 기억과 논리를 이용해 위험을 피하면서 Gold를 찾고 탈출을 시도하는 Agentic AI 프로젝트입니다. Agent는 상황에 따라 BFS, UCS, A* 중 알맞은 경로 탐색 알고리즘을 자동으로 선택합니다. 환경은 부분 관측이지만, 이 프로젝트는 POMDP 최적 정책을 푸는 대신 명제 논리 추론과 위험도 기반 행동 규칙을 사용합니다.
+여러 개의 4×4 방으로 이루어진 던전(방 개수 1~6개 선택)에서 AI Agent가 **Breeze, Stench, Glitter, Scream** 등의 환경 신호(Percept)를 수집하고, 기억과 논리를 이용해 위험을 피하면서 Gold를 찾고 탈출을 시도하는 Agentic AI 프로젝트입니다. Agent는 상황에 따라 BFS와 UCS 중 알맞은 경로 탐색 알고리즘을 자동으로 선택합니다. 환경은 부분 관측이지만, 이 프로젝트는 POMDP 최적 정책을 푸는 대신 명제 논리 추론과 위험도 기반 행동 규칙을 사용합니다.
 
 ---
 
@@ -16,13 +16,15 @@ wumpus-world/
 ├── requirements.txt         # 📦 의존성 패키지 (pygame-ce 2.5.8)
 ├── game/                    # 🎮 핵심 게임 로직 & AI 엔진
 │   ├── agent.py             # 🤖 AI Agent 클래스 (Perception, Memory, Logic, Risk, Planning)
-│   ├── algorithms.py        # 🧠 에이전트 알고리즘 (Logic + risk, Safe only)
+│   ├── algorithms.py        # 🧠 에이전트 전략 (Logic + risk, Safe only)
 │   ├── rules.py             # 📜 명제 논리 추론 엔진 (Knowledge Base & Risk Evaluation)
 │   ├── world.py             # 🗺️ 다중 방 던전(벽·문·입구·출구), 위험 요소(Pit/Wumpus), 지각 신호 생성
 │   ├── scoring.py           # 🎯 점수 규칙 및 원인별 고정 사망 기억 페널티 계산
-│   ├── search.py            # 🔎 BFS·UCS·A* 공통 그래프 탐색 엔진
+│   ├── search.py            # 🔎 BFS·UCS 공통 그래프 탐색 엔진
 │   ├── replays.py           # 📼 게임 이벤트 기록 및 리플레이 복원
-│   ├── benchmark.py         # 📈 알고리즘 성능 벤치마크 CLI
+│   ├── benchmark.py         # 📈 에이전트 전략 벤치마크 CLI (Auto 경로 탐색)
+│   ├── benchmarking.py      # 📊 벤치마크 공통 실행·통계·CSV 스키마
+│   ├── search_benchmark.py  # 📈 BFS·UCS·Auto 경로 탐색 벤치마크 CLI
 │   ├── i18n.py              # 🌐 영어 / 한국어 UI 문자열
 │   └── game_manager.py      # ⚙️ 게임 흐름 동기화, 점수 계산 및 게임 모드 제어
 ├── ui/                      # 🖥️ UI & 오디오 렌더링
@@ -41,20 +43,24 @@ wumpus-world/
         ├── breeze.wav, stench.wav, glitter.wav, scream.wav, door.wav, pit.wav, wumpus.wav, gold.wav
 ```
 
-| 모듈 / 파일            | 역할                                                                                              |
-| :--------------------- | :------------------------------------------------------------------------------------------------ |
-| `main.py`              | 🚀 Pygame 초기화, 윈도우 생성, 마우스/키보드 이벤트 분기 및 메인 루프 실행                        |
-| `game/world.py`        | 🗺️ 다중 방 던전 생성(클래식 맵/랜덤 맵), 문으로 연결된 방, Pit/Wumpus/Gold 배치, 화살 궤적 계산 및 Percept 발생 |
-| `game/agent.py`        | 🤖 AI Agent 상태 관리, 인지·추론·행동 루프, 사망 기억, 위험 평가 및 경로 계획 |
-| `game/rules.py`        | 📜 명제 논리 기반 지식 추론, 과거 실패 기억 통합(`death_memory`), 위험도 점수(`Risk Score`) 산출   |
-| `game/scoring.py`      | 🎯 이동·사격·사망·골드 점수 및 원인별 고정 사망 기억 페널티(`calculate_memory_penalty`) 산정       |
-| `game/search.py`       | 🔎 공통 BFS·UCS·A* 그래프 탐색 엔진 및 경로 탐색 결과(`cost`, `expanded`) 반환 |
-| `game/game_manager.py` | ⚙️ World와 Agent 상호작용 동기화, 사망 원인 기록(`record_death`), Replay 메모리 보존 제어          |
-| `game/replays.py`      | 📼 완료된 게임 JSONL 저장 및 복원 엔진                                                             |
-| `ui/renderer.py`       | 🖥️ 현재 방 화면, 던전 미니맵, 시야 안개(Fog of War), AI 사고 과정 및 Agent 패널 렌더링          |
-| `ui/controls.py`       | 🎛️ 마우스로 조작하는 하단 컨트롤 바 (AI 실행, 맵, 수동 조작, 보기 설정)                          |
-| `ui/sound_manager.py`  | 🔊 지각 신호(Breeze/Stench/Glitter), 탈출(Door), 사망(Pit/Wumpus), 비명(Scream) 저지연 오디오 재생 엔진 |
-| `assets/`              | 🎨 던전 타일, 캐릭터, 몬스터, 지각 신호 스프라이트 및 효과음(.wav) 리소스                           |
+| 모듈 / 파일                | 역할                                                                                                            |
+| :------------------------- | :-------------------------------------------------------------------------------------------------------------- |
+| `main.py`                  | 🚀 Pygame 초기화, 윈도우 생성, 마우스/키보드 이벤트 분기 및 메인 루프 실행                                      |
+| `game/world.py`            | 🗺️ 다중 방 던전 생성(클래식 맵/랜덤 맵), 문으로 연결된 방, Pit/Wumpus/Gold 배치, 화살 궤적 계산 및 Percept 발생 |
+| `game/agent.py`            | 🤖 AI Agent 상태 관리, 인지·추론·행동 루프, 사망 기억, 위험 평가 및 경로 계획                                   |
+| `game/algorithms.py`       | 🧠 에이전트 전략(`Logic + risk`, `Safe only`) 정의 및 표시 이름 조회                                            |
+| `game/rules.py`            | 📜 명제 논리 기반 지식 추론, 과거 실패 기억 통합(`death_memory`), 위험도 점수(`Risk Score`) 산출                |
+| `game/scoring.py`          | 🎯 이동·사격·사망·골드 점수 및 원인별 고정 사망 기억 페널티(`calculate_memory_penalty`) 산정                    |
+| `game/search.py`           | 🔎 공통 BFS·UCS 그래프 탐색 엔진 및 경로 탐색 결과(`cost`, `expanded`) 반환                                     |
+| `game/game_manager.py`     | ⚙️ World와 Agent 상호작용 동기화, 사망 원인 기록(`record_death`), Replay 메모리 보존 제어                       |
+| `game/replays.py`          | 📼 완료된 게임 JSONL 저장 및 복원 엔진                                                                          |
+| `game/benchmark.py`        | 📊 전략별 성능 비교; 방 1~6개에서 두 전략이 Auto 경로 탐색을 사용                                               |
+| `game/search_benchmark.py` | 📈 정책별 BFS/UCS/Auto 경로 탐색 비교 및 CSV 출력                                                               |
+| `game/benchmarking.py`     | 🧰 두 benchmark가 공유하는 게임 실행, 통계 계산 및 CSV 열 스키마                                                |
+| `ui/renderer.py`           | 🖥️ 현재 방 화면, 던전 미니맵, 시야 안개(Fog of War), AI 사고 과정 및 Agent 패널 렌더링                          |
+| `ui/controls.py`           | 🎛️ 마우스로 조작하는 하단 컨트롤 바 (AI 실행, 맵, 수동 조작, 보기 설정)                                         |
+| `ui/sound_manager.py`      | 🔊 지각 신호(Breeze/Stench/Glitter), 탈출(Door), 사망(Pit/Wumpus), 비명(Scream) 저지연 오디오 재생 엔진         |
+| `assets/`                  | 🎨 던전 타일, 캐릭터, 몬스터, 지각 신호 스프라이트 및 효과음(.wav) 리소스                                       |
 
 ---
 
@@ -84,7 +90,7 @@ flowchart TD
         World["<b>world.py</b><br/>Grid World & Percept Generator"]
         Agent["<b>agent.py</b><br/>AI Agent & Episodic Memory"]
         Rules["<b>rules.py</b><br/>Propositional Logic Engine"]
-        Search["<b>search.py</b><br/>BFS · UCS · A*"]
+        Search["<b>search.py</b><br/>BFS · UCS"]
 
         Agent -->|Logical Reasoning| Rules
         Agent -->|Path Planning| Search
@@ -120,17 +126,17 @@ AI Agent는 동굴을 탐험하며 각 칸에서 감각 정보(**Percept**)를 �
 
 ### 1. 환경 지각 신호 (Percepts) & 객체
 
-| 아이콘 / 요소 | 명칭                   | 의미 및 규칙                                                            |
-| :-----------: | :--------------------- | :---------------------------------------------------------------------- |
-|      🌬️       | **Breeze (바람)**      | 상/하/좌/우 인접 칸에 Pit(함정)이 존재함을 감지                         |
-|      👃       | **Stench (악취)**      | 상/하/좌/우 인접 칸에 Wumpus(괴물)가 살아있음을 감지                    |
-|      ✨       | **Glitter (반짝임)**   | 현재 위치한 칸에 Gold(금괴)가 존재함                                    |
-|      😱       | **Scream (비명)**      | Agent가 쏜 화살에 Wumpus가 명중하여 처치되었을 때 동굴 전체에 울려 퍼짐 |
-|      🚪       | **Exit (출구)**        | 해당 칸에 직접 도착해야 위치를 발견·기억합니다. 발견 전에는 방 제목·보드·미니맵에 숨겨집니다. Gold를 들고 탈출하면 승리하며, 출구를 모르면 Gold 획득 후에도 탐색을 계속합니다. Reveal map은 화면에만 표시하며 Agent에게 위치를 알려주지 않습니다. |
-|      🔷       | **Door (방 사이 문)**  | 이웃한 방을 연결. 양방향 이동 가능. 문과 그 주변 칸에는 위험 요소가 없음 |
-|      ❌       | **Pit (함정)**         | 빠지면 즉시 사망 및 게임 오버 (-1000점)                                 |
-|      👹       | **Wumpus (괴물)**      | 마주치면 즉시 사망 및 게임 오버 (-1000점). 화살로 사냥 가능             |
-|      🏹       | **Arrow (화살)**       | Agent가 단 1발 보유. 같은 방에서 직선으로 날아가 Wumpus를 제거합니다. 빗나간 화살이 지나간 칸은 Wumpus가 없는 것으로 기억합니다.                   |
+| 아이콘 / 요소 | 명칭                  | 의미 및 규칙                                                                                                                                                                                                                                      |
+| :-----------: | :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+|      🌬️       | **Breeze (바람)**     | 상/하/좌/우 인접 칸에 Pit(함정)이 존재함을 감지                                                                                                                                                                                                   |
+|      👃       | **Stench (악취)**     | 상/하/좌/우 인접 칸에 Wumpus(괴물)가 살아있음을 감지                                                                                                                                                                                              |
+|      ✨       | **Glitter (반짝임)**  | 현재 위치한 칸에 Gold(금괴)가 존재함                                                                                                                                                                                                              |
+|      😱       | **Scream (비명)**     | Agent가 쏜 화살에 Wumpus가 명중하여 처치되었을 때 동굴 전체에 울려 퍼짐                                                                                                                                                                           |
+|      🚪       | **Exit (출구)**       | 해당 칸에 직접 도착해야 위치를 발견·기억합니다. 발견 전에는 방 제목·보드·미니맵에 숨겨집니다. Gold를 들고 탈출하면 승리하며, 출구를 모르면 Gold 획득 후에도 탐색을 계속합니다. Reveal map은 화면에만 표시하며 Agent에게 위치를 알려주지 않습니다. |
+|      🔷       | **Door (방 사이 문)** | 이웃한 방을 연결. 양방향 이동 가능. 문과 그 주변 칸에는 위험 요소가 없음                                                                                                                                                                          |
+|      ❌       | **Pit (함정)**        | 빠지면 즉시 사망 및 게임 오버 (-1000점)                                                                                                                                                                                                           |
+|      👹       | **Wumpus (괴물)**     | 마주치면 즉시 사망 및 게임 오버 (-1000점). 화살로 사냥 가능                                                                                                                                                                                       |
+|      🏹       | **Arrow (화살)**      | Agent가 단 1발 보유. 같은 방에서 직선으로 날아가 Wumpus를 제거합니다. 빗나간 화살이 지나간 칸은 Wumpus가 없는 것으로 기억합니다.                                                                                                                  |
 
 ### 2. 부분 관측과 맵 발견
 
@@ -166,15 +172,14 @@ Perception → Memory → Logic → Risk evaluation → Planning → Action
 - **Memory**: 방문한 칸, 이미 발견한 위험, Wumpus 위치, 탐색한 경로를 기억합니다.
 - **Logic**: 감지한 정보를 바탕으로 각 칸이 안전한지 추론합니다.
 - **Risk evaluation**: 아직 확실하지 않은 칸의 Pit/Wumpus 위험도를 계산합니다.
-- **Planning**: `game/search.py`의 BFS, UCS, A* 중 현재 상황에 맞는 알고리즘을 자동으로 선택해 목표까지의 경로를 찾습니다.
-  - BFS는 이동 횟수가 가장 적은 경로를 찾습니다.
-  - UCS는 이동과 사격을 포함한 총 경로 비용이 가장 작은 경로를 찾습니다.
-  - A*는 UCS의 비용에 heuristic을 더해 목표가 명확한 경로를 빠르게 찾습니다.
+- **Planning**: `game/search.py`의 BFS와 UCS 중 현재 경로의 행동 비용에 맞는 알고리즘을 선택해 목표까지의 경로를 찾습니다.
+  - BFS는 각 행동의 비용이 같은 이동 전용 경로에서 이동 횟수가 가장 적은 경로를 찾습니다.
+  - UCS는 이동과 사격처럼 행동별 비용이 다른 경로에서 총비용이 가장 낮은 경로를 찾습니다. 이동 비용은 1, 사격 비용은 10입니다.
 - **Action**: `MOVE`, `SHOOT`, `GRAB`, `CLIMB`, `PASS` 중 하나를 선택합니다.
 
-즉, **Logic은 Agent가 세계를 이해하도록 하고, Risk evaluation은 위험을 판단하도록 하며, BFS/UCS/A*는 실제 이동 경로를 계획하도록 합니다.** Agent는 여러 개의 안전 목표를 빠르게 탐색할 때 BFS, 이동과 사격처럼 비용이 다른 경로를 비교할 때 UCS, 목표가 명확한 경로를 찾을 때 A*를 선택합니다. 안전한 경로가 없을 때는 별도의 Risk Score로 frontier 후보를 비교합니다.
+즉, **Logic은 Agent가 세계를 이해하도록 하고, Risk evaluation은 위험을 판단하도록 하며, BFS와 UCS는 이동 경로를 계획하도록 합니다.** Agent는 이동 전용 경로에서 BFS를, 이동과 사격처럼 비용이 다른 행동을 함께 고려하는 경로에서 UCS를 선택합니다. 안전한 경로가 없을 때는 별도의 Risk Score로 frontier 후보를 비교합니다.
 
-경로 탐색 방식은 자동 선택(`auto`)으로 고정되어 있습니다. Agent가 현재 목표와 행동 비용을 보고 BFS, UCS, A* 중 하나를 선택합니다. 화면의 Agent 스위처(`Logic + risk`, `Safe only`)는 탐색 알고리즘이 아니라 Agent의 행동 정책을 바꾸는 기능입니다.
+경로 탐색 방식은 자동 선택(`auto`)으로 고정되어 있습니다. Agent는 경로에 사격이 포함될 수 있어 행동 비용이 달라지면 UCS를 선택하고, 이동만 포함되면 BFS를 선택합니다. 화면의 Agent 스위처(`Logic + risk`, `Safe only`)는 탐색 알고리즘이 아니라 Agent의 행동 정책을 바꾸는 기능입니다.
 
 Agent는 부분 관측 환경에서 다음과 같은 **6단계 인지 순환 루프**를 거쳐 행동합니다. 여기서 부분 관측은 환경의 특성을 뜻하며, Agent가 POMDP 알고리즘이나 최적 정책 계산을 수행한다는 의미는 아닙니다.
 
@@ -248,25 +253,25 @@ Pygame으로 구현한 카드 기반의 깔끔한 UI 레이아웃입니다.
 
 모든 기능은 하단 컨트롤 바에서 마우스로 사용할 수 있으며, 아래 단축키도 그대로 동작합니다.
 
-|                      키 (Key)                       | 화면 컨트롤                  | 설명                                                                |
-| :-------------------------------------------------: | :--------------------------- | :------------------------------------------------------------------ |
-|      <kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd>      | **Play mode** Auto / Step / Manual | 현재 모드를 선택하고 표시합니다. 선택한 모드의 컨트롤만 활성화됩니다. |
-|                  <kbd>SPACE</kbd>                   | **Next step**                | Step 모드로 전환하고 AI Agent가 다음 1단계를 추론하고 행동합니다.   |
-|                    <kbd>A</kbd>                     | **Auto** 모드                | AI가 스스로 연속 탐색합니다 (다시 누르면 Step). 속도는 Slow / Normal / Fast. |
-|                    <kbd>M</kbd>                     | **New map**                  | 선택한 방 개수로 새 던전을 생성하며 사망 기억을 초기화합니다.       |
-|                    <kbd>R</kbd>                     | **Replay**                   | 같은 맵을 다시 플레이하며 **사망 기억(Episodic Memory)을 계승**합니다. |
-|                    <kbd>D</kbd>                     | **Classic**                  | 원래의 4×4 클래식 맵(입구 (3,0), 출구 (0,3))을 로드합니다.          |
-|             <kbd>+</kbd> / <kbd>-</kbd>             | **Rooms** − / +              | Random map의 방 개수(1~6)를 바꾸고 새 던전을 생성합니다. Classic map에서는 고정 1개 방이므로 비활성화됩니다. |
-| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | 방향 버튼                    | 수동 이동 (Manual 모드로 전환). 벽은 통과할 수 없고 문으로만 다른 방에 갈 수 있습니다.   |
-| <kbd>Shift</kbd> + 방향키                           | 화살 보유 상태 표시          | 해당 방향으로 화살 발사 (1회, 같은 방 안에서만 날아감).             |
-|                    <kbd>G</kbd>                     | **Grab gold**                | 현재 칸의 Gold를 획득합니다. |
-|                    <kbd>C</kbd>                     | **Enter door / Exit**        | 수동 조작 시 Gold 유무와 관계없이 C 또는 버튼으로 문 통과·출구 탈출을 확인합니다. AI는 문을 자동 통과합니다. Gold를 가진 채 출구에 도착하면 자동 탈출하고, 탐색이 막혔을 때 출구를 알고 안전하게 돌아갈 수 있으면 Gold 없이도 탈출할 수 있습니다. 입구로는 나갈 수 없습니다. |
-|                    <kbd>F1</kbd>                    | **Analytics**                | 개발자 분석 패널을 엽니다. |
-|                    <kbd>F2</kbd>                    | **Replays**                  | 저장된 게임 리플레이 뷰어를 엽니다. |
-|                   <kbd>TAB</kbd>                    | **Reveal map** 스위치 (방 카드 상단) | 안개를 걷고 전체 맵의 실제 상태를 표시합니다.                |
-|                    <kbd>L</kbd>                     | **EN / 한국어**              | 인터페이스 언어 전환.                                               |
-|                    <kbd>T</kbd>                     | **Dark theme** 스위치        | 라이트 / 다크 테마 전환.                                            |
-|                          –                          | **Sound** 스위치             | 효과음 켜기 / 끄기.                                                 |
+|                      키 (Key)                       | 화면 컨트롤                          | 설명                                                                                                                                                                                                                                                                         |
+| :-------------------------------------------------: | :----------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|     <kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd>      | **Play mode** Auto / Step / Manual   | 현재 모드를 선택하고 표시합니다. 선택한 모드의 컨트롤만 활성화됩니다.                                                                                                                                                                                                        |
+|                  <kbd>SPACE</kbd>                   | **Next step**                        | Step 모드로 전환하고 AI Agent가 다음 1단계를 추론하고 행동합니다.                                                                                                                                                                                                            |
+|                    <kbd>A</kbd>                     | **Auto** 모드                        | AI가 스스로 연속 탐색합니다 (다시 누르면 Step). 속도는 Slow / Normal / Fast.                                                                                                                                                                                                 |
+|                    <kbd>M</kbd>                     | **New map**                          | 선택한 방 개수로 새 던전을 생성하며 사망 기억을 초기화합니다.                                                                                                                                                                                                                |
+|                    <kbd>R</kbd>                     | **Replay**                           | 같은 맵을 다시 플레이하며 **사망 기억(Episodic Memory)을 계승**합니다.                                                                                                                                                                                                       |
+|                    <kbd>D</kbd>                     | **Classic**                          | 원래의 4×4 클래식 맵(입구 (3,0), 출구 (0,3))을 로드합니다.                                                                                                                                                                                                                   |
+|             <kbd>+</kbd> / <kbd>-</kbd>             | **Rooms** − / +                      | Random map의 방 개수(1~6)를 바꾸고 새 던전을 생성합니다. Classic map에서는 고정 1개 방이므로 비활성화됩니다.                                                                                                                                                                 |
+| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | 방향 버튼                            | 수동 이동 (Manual 모드로 전환). 벽은 통과할 수 없고 문으로만 다른 방에 갈 수 있습니다.                                                                                                                                                                                       |
+|              <kbd>Shift</kbd> + 방향키              | 화살 보유 상태 표시                  | 해당 방향으로 화살 발사 (1회, 같은 방 안에서만 날아감).                                                                                                                                                                                                                      |
+|                    <kbd>G</kbd>                     | **Grab gold**                        | 현재 칸의 Gold를 획득합니다.                                                                                                                                                                                                                                                 |
+|                    <kbd>C</kbd>                     | **Enter door / Exit**                | 수동 조작 시 Gold 유무와 관계없이 C 또는 버튼으로 문 통과·출구 탈출을 확인합니다. AI는 문을 자동 통과합니다. Gold를 가진 채 출구에 도착하면 자동 탈출하고, 탐색이 막혔을 때 출구를 알고 안전하게 돌아갈 수 있으면 Gold 없이도 탈출할 수 있습니다. 입구로는 나갈 수 없습니다. |
+|                    <kbd>F1</kbd>                    | **Analytics**                        | 개발자 분석 패널을 엽니다.                                                                                                                                                                                                                                                   |
+|                    <kbd>F2</kbd>                    | **Replays**                          | 저장된 게임 리플레이 뷰어를 엽니다.                                                                                                                                                                                                                                          |
+|                   <kbd>TAB</kbd>                    | **Reveal map** 스위치 (방 카드 상단) | 안개를 걷고 전체 맵의 실제 상태를 표시합니다.                                                                                                                                                                                                                                |
+|                    <kbd>L</kbd>                     | **EN / 한국어**                      | 인터페이스 언어 전환.                                                                                                                                                                                                                                                        |
+|                    <kbd>T</kbd>                     | **Dark theme** 스위치                | 라이트 / 다크 테마 전환.                                                                                                                                                                                                                                                     |
+|                          –                          | **Sound** 스위치                     | 효과음 켜기 / 끄기.                                                                                                                                                                                                                                                          |
 
 ---
 
@@ -276,26 +281,21 @@ Agent 패널의 **Analytics** 버튼(또는 <kbd>F1</kbd>)을 누르면 드래�
 
 - **Current game**: 결과, 걸음 수, 탐색률, 결정당 사고 시간(평균/최대 ms), 위험 이동 횟수, 문 통과, 화살 사용, 경과 시간
 - **Session**: 이번 실행에서 끝난 게임 수, 승률, Pit/Wumpus 사망률, 평균 점수·걸음·탐색률
-- **Benchmark**: `game/algorithms.py`에 등록된 Agent 구현을 50/100/250 게임 동안 그래픽 없이 실행합니다. **모든 Agent가 같은 맵 세트**에서 테스트되므로 결과를 바로 비교할 수 있습니다.
-
-자신의 알고리즘을 비교하려면 `game/algorithms.py`에서 `Agent`를 상속해 `decide_next_action`을 구현하고 `ALGORITHMS`에 추가하세요. 예시로 위험을 전혀 감수하지 않는 `Safe only` 기준 알고리즘이 들어 있습니다.
-
-터미널에서도 실행할 수 있습니다:
-
-```bash
-python -m game.benchmark --games 200 --rooms 3
-```
+- **Benchmark**:
+  - 전략 비교: `python -m game.benchmark --games 200`은 1~6개 방에서 `Logic + risk`와 `Safe only`를 Auto 경로 탐색으로 비교하고 `strategy_benchmark.csv`에 저장합니다.
+  - 경로 탐색 비교: `python -m game.search_benchmark --games 200`은 두 전략에서 BFS, UCS, Auto를 비교하고 `search_benchmark.csv`에 저장합니다.
+  - `--games`는 각 방·전략·경로 탐색 방식 조합에서 플레이할 맵 수입니다.
 
 ---
 
 ## 🛠️ Tech Stack
 
-| 기술                | 용도              | 설명                                                        |
-| :------------------ | :---------------- | :---------------------------------------------------------- |
-| 🐍 **Python 3.10+** | Core Logic        | 게임 환경 및 AI Agent 구현                                  |
+| 기술                   | 용도              | 설명                                                      |
+| :--------------------- | :---------------- | :-------------------------------------------------------- |
+| 🐍 **Python 3.10+**    | Core Logic        | 게임 환경 및 AI Agent 구현                                |
 | 🎮 **pygame-ce 2.5.8** | Graphics & Audio  | 60 FPS 2D 렌더링, Retina(High-DPI) 지원, 입력 이벤트 처리 |
-| 🧠 **Symbolic AI**  | Knowledge & Logic | 명제 논리(Propositional Logic), 지식 베이스 추론            |
-| 🧭 **Algorithms**   | Pathfinding       | BFS, UCS, A* 경로 탐색 및 Risk Score 기반 위험 평가 |
+| 🧠 **Symbolic AI**     | Knowledge & Logic | 명제 논리(Propositional Logic), 지식 베이스 추론          |
+| 🧭 **Algorithms**      | Pathfinding       | BFS, UCS 경로 탐색 및 Risk Score 기반 위험 평가           |
 
 ---
 

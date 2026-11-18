@@ -1,63 +1,39 @@
 """
-Headless benchmark: plays many games without graphics and summarizes the results.
+Headless strategy benchmark: plays many games without graphics and summarizes results.
 
-Every algorithm is tested on the same maps (map i is generated from seed BASE_SEED + i),
-so results are directly comparable.
+Each strategy is tested on the same maps within each room count. The agent's
+route planner is Auto, which selects BFS or UCS for each planning task.
 
 Command line:
-    python -m game.benchmark --games 200 --rooms 3
-    python -m game.benchmark --games 200 --rooms 3 --algo "Safe only"
+    python -m game.benchmark --games 200
 """
 import argparse
-import random
+import csv
 import time
+from pathlib import Path
 
 from game.world import World
-from game.game_manager import GameManager
 from game.algorithms import ALGORITHMS
-
-BASE_SEED = 1000
-MAX_STEPS = 2000
-
-
-def play_one(agent_class, rooms, seed):
-    """Plays one full game on the map generated from `seed`; returns GameManager.result()."""
-    state = random.getstate()
-    random.seed(seed)
-    try:
-        world = World(num_rooms=rooms)
-    finally:
-        random.setstate(state)  # do not disturb the live game's randomness
-    gm = GameManager(world, agent_class(world))
-    for _ in range(MAX_STEPS):
-        if gm.game_over:
-            break
-        gm.step_ai()
-    if not gm.game_over:
-        gm.game_over, gm.death_reason = True, "TRAPPED"
-        gm._after_action()
-    return gm.history[-1]
+from game.benchmarking import BASE_SEED, CSV_FIELDS, play_one, summarize_results
 
 
 def summarize(results):
-    n = len(results)
-    if not n:
+    metrics = summarize_results(results)
+    if metrics is None:
         return None
-    count = lambda o: sum(r["outcome"] == o for r in results) / n
-    decisions = sum(r["decisions"] for r in results)
     return {
-        "games": n,
-        "win": count("win"),
-        "pit": count("pit"),
-        "wumpus": count("wumpus"),
-        "escaped": count("escaped"),
-        "trapped": count("trapped"),
-        "kills": sum(r["kills"] > 0 for r in results) / n,
-        "score": sum(r["score"] for r in results) / n,
-        "steps": sum(r["steps"] for r in results) / n,
-        "explored": sum(r["explored"] for r in results) / n,
-        "think_ms": sum(r["think_ms_avg"] * r["decisions"] for r in results) / decisions if decisions else 0.0,
-        "think_ms_max": max(r["think_ms_max"] for r in results),
+        "games": metrics["games"],
+        "win": metrics["win_rate"],
+        "pit": metrics["pit_rate"],
+        "wumpus": metrics["wumpus_rate"],
+        "escaped": metrics["escaped_rate"],
+        "trapped": metrics["trapped_rate"],
+        "kills": metrics["kills_rate"],
+        "score": metrics["avg_score"],
+        "steps": metrics["avg_steps"],
+        "explored": metrics["avg_explored"],
+        "think_ms": metrics["think_ms_per_decision"],
+        "think_ms_max": metrics["think_ms_max"],
     }
 
 
@@ -95,24 +71,58 @@ class Benchmark:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Compare Wumpus World agents on the same maps.")
-    parser.add_argument("--games", type=int, default=100)
-    parser.add_argument("--rooms", type=int, default=3)
-    parser.add_argument("--algo", action="append", help="algorithm name (repeatable); default: all")
+    parser = argparse.ArgumentParser(description="Compare Wumpus World agent strategies on identical maps.")
+    parser.add_argument("--games", type=int, default=100,
+                        help="maps per strategy and room count (default: 100)")
+    parser.add_argument("--rooms", type=int, nargs="+", default=list(range(World.MIN_ROOMS, World.MAX_ROOMS + 1)),
+                        choices=range(World.MIN_ROOMS, World.MAX_ROOMS + 1),
+                        help="room counts; default: 1 through 6")
+    parser.add_argument("--algo", "--strategy", dest="algo", action="append",
+                        help="agent strategy name (repeatable); default: all")
+    parser.add_argument("--output", type=Path, default=Path("strategy_benchmark.csv"),
+                        help="summary CSV output path (default: strategy_benchmark.csv)")
     args = parser.parse_args()
+    if args.games < 1:
+        parser.error("--games must be at least 1")
 
     names = args.algo or list(ALGORITHMS)
-    print(f"{args.games} games, {args.rooms} room(s), same maps for every algorithm\n")
-    print(f"{'Algorithm':<16}{'Win':>7}{'Pit':>7}{'Wumpus':>8}{'Escaped':>9}{'Trapped':>9}{'Kills':>7}"
+    print(f"{args.games} games per strategy and room count; route planner: Auto\n")
+    print(f"{'Rooms':<7}{'Strategy':<16}{'Win':>7}{'Pit':>7}{'Wumpus':>8}{'Escaped':>9}{'Trapped':>9}{'Kills':>7}"
           f"{'Score':>9}{'Steps':>8}{'Explored':>10}{'ms/step':>9}{'Time':>8}")
-    for name in names:
-        bench = Benchmark(name, args.rooms, args.games)
-        while not bench.done:
-            bench.step(1000)
-        s = bench.summary()
-        print(f"{name:<16}{s['win']:>7.0%}{s['pit']:>7.0%}{s['wumpus']:>8.0%}{s['escaped']:>9.0%}"
-              f"{s['trapped']:>9.0%}{s['kills']:>7.0%}{s['score']:>9.0f}{s['steps']:>8.1f}{s['explored']:>10.0%}"
-              f"{s['think_ms']:>9.2f}{s['seconds']:>7.1f}s")
+    rows = []
+    for rooms in args.rooms:
+        for name in names:
+            bench = Benchmark(name, rooms, args.games)
+            while not bench.done:
+                bench.step(1000)
+            s = bench.summary()
+            rows.append({
+                "rooms": rooms,
+                "strategy": name,
+                "route_planner": "auto",
+                "games": s["games"],
+                "win_rate": s["win"],
+                "pit_rate": s["pit"],
+                "wumpus_rate": s["wumpus"],
+                "escaped_rate": s["escaped"],
+                "trapped_rate": s["trapped"],
+                "kills_rate": s["kills"],
+                "avg_score": s["score"],
+                "avg_steps": s["steps"],
+                "avg_explored": s["explored"],
+                "think_ms_per_decision": s["think_ms"],
+                "think_ms_max": s["think_ms_max"],
+                "elapsed_seconds": s["seconds"],
+            })
+            print(f"{rooms:<7}{name:<16}{s['win']:>7.0%}{s['pit']:>7.0%}{s['wumpus']:>8.0%}{s['escaped']:>9.0%}"
+                  f"{s['trapped']:>9.0%}{s['kills']:>7.0%}{s['score']:>9.0f}{s['steps']:>8.1f}{s['explored']:>10.0%}"
+                  f"{s['think_ms']:>9.2f}{s['seconds']:>7.1f}s")
+
+    with args.output.open("w", newline="", encoding="utf-8") as output:
+        writer = csv.DictWriter(output, fieldnames=CSV_FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
+    print(f"\nSaved {len(rows)} summary rows to {args.output.resolve()}")
 
 
 if __name__ == "__main__":
