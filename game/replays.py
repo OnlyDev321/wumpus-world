@@ -12,7 +12,7 @@ from datetime import datetime
 
 from game.world import World
 from game.agent import Agent
-from game.algorithms import ALGORITHMS
+from game.strategies import STRATEGIES
 from game.game_manager import GameManager
 
 MAX_GAMES = 10
@@ -112,7 +112,7 @@ class Replay:
         memory = self.record["death_memory"]
         death_memory = {"pits": {tuple(cell) for cell in memory["pits"]},
                         "wumpus": tuple(memory["wumpus"]) if memory["wumpus"] else None}
-        agent_class = ALGORITHMS.get(self.record["algorithm"], Agent)
+        agent_class = STRATEGIES.get(self.record["algorithm"], Agent)
         return GameManager(world, agent_class(world, death_memory=death_memory))
 
     @property

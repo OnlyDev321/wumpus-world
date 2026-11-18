@@ -1,7 +1,7 @@
 import time
 
 from game.world import World
-from game.algorithms import algorithm_name
+from game.strategies import strategy_name
 from game.i18n import T, Join, algorithm_label
 from game.scoring import MOVE_COST, SHOT_COST, DEATH_COST, GOLD_REWARD, calculate_memory_penalty
 
@@ -74,7 +74,7 @@ class GameManager:
 
     @property
     def algorithm(self):
-        return algorithm_name(type(self.agent))
+        return strategy_name(type(self.agent))
 
     def set_algorithm(self, agent_class):
         """Switches the AI algorithm and replays the current map with a fresh agent."""

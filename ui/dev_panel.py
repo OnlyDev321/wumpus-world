@@ -4,7 +4,7 @@ that compares algorithms on the same maps.
 """
 import pygame
 
-from game.algorithms import ALGORITHMS
+from game.strategies import STRATEGIES
 from game.benchmark import Benchmark
 from game.i18n import T, tr, algorithm_label
 from ui.widgets import Button, Segmented
@@ -25,7 +25,7 @@ class DevPanel:
         self.benchmark = None
         self.bench_results = {}  # (algorithm, rooms, games) -> summary
 
-        names = list(ALGORITHMS)
+        names = list(STRATEGIES)
         running = lambda: self.benchmark is not None
         # (widget, position relative to the window's top-left)
         self._widgets = [
@@ -48,7 +48,7 @@ class DevPanel:
         self.dragging = False
 
     def _set_algorithm(self, name):
-        self.gm.set_algorithm(ALGORITHMS[name])
+        self.gm.set_algorithm(STRATEGIES[name])
 
     def _set_games(self, n):
         self.bench_games = n
@@ -203,7 +203,7 @@ class DevPanel:
     def _draw_table(self, p, y):
         t = p.theme
         r = self.rect
-        rows = [(name, self.bench_results.get((name, self.gm.num_rooms, self.bench_games))) for name in ALGORITHMS]
+        rows = [(name, self.bench_results.get((name, self.gm.num_rooms, self.bench_games))) for name in STRATEGIES]
         cols = [(tr("col.algorithm"), 0), (tr("col.win"), 140), (tr("col.pit"), 185), (tr("col.kill"), 230),
                 (tr("col.score"), 275), (tr("col.steps"), 330), (tr("col.ms"), 385)]
         for label, dx in cols:

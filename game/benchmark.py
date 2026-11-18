@@ -12,7 +12,7 @@ import csv
 import time
 
 from game.world import World
-from game.algorithms import ALGORITHMS
+from game.strategies import STRATEGIES
 from game.benchmarking import BASE_SEED, CSV_FIELDS, play_one, summarize_results
 
 
@@ -41,7 +41,7 @@ class Benchmark:
 
     def __init__(self, algo_name, rooms, games):
         self.algo_name = algo_name
-        self.agent_class = ALGORITHMS[algo_name]
+        self.agent_class = STRATEGIES[algo_name]
         self.rooms = rooms
         self.games = games
         self.results = []
@@ -78,7 +78,7 @@ def main():
         parser.error("--games must be at least 1")
 
     rooms_to_test = range(World.MIN_ROOMS, World.MAX_ROOMS + 1)
-    names = list(ALGORITHMS)
+    names = list(STRATEGIES)
     output_path = "strategy_benchmark.csv"
     print(f"{args.games} games per strategy and room count; route planner: Auto\n")
     print(f"{'Rooms':<7}{'Strategy':<16}{'Win':>7}{'Pit':>7}{'Wumpus':>8}{'Escaped':>9}{'Trapped':>9}{'Kills':>7}"

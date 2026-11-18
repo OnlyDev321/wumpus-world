@@ -1,7 +1,7 @@
 import pygame
 
 from game.world import World
-from game.algorithms import ALGORITHMS
+from game.strategies import STRATEGIES
 from game.i18n import T, LANGUAGES, get_language, set_language, algorithm_label
 from ui.widgets import Button, Switch, Segmented, Stepper
 
@@ -71,9 +71,9 @@ class ControlPanel:
                    lambda: renderer.reveal_all, lambda v: setattr(renderer, "reveal_all", v), width=136), "Tab"),
             # Algorithm switcher: sits in the Dungeon map header
             Segmented((renderer.map_rect.right - 20 - 200, renderer.map_rect.y + 14, 200, 28),
-                      [(name, algorithm_label(name)) for name in ALGORITHMS],
+                      [(name, algorithm_label(name)) for name in STRATEGIES],
                       lambda: self.gm.algorithm,
-                      lambda name: self.gm.set_algorithm(ALGORITHMS[name])),
+                      lambda name: self.gm.set_algorithm(STRATEGIES[name])),
         ]
         if dev_panel:
             # Lives in the Agent card header, next to the title

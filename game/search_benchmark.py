@@ -12,7 +12,7 @@ import csv
 import time
 
 from game.agent import Agent
-from game.algorithms import SafeOnlyAgent
+from game.strategies import SafeOnlyAgent
 from game.benchmarking import BASE_SEED, CSV_FIELDS, play_one, summarize_results
 from game.world import World
 

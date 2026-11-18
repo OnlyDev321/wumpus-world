@@ -16,7 +16,7 @@ wumpus-world/
 ├── requirements.txt         # 📦 의존성 패키지 (pygame-ce 2.5.8)
 ├── game/                    # 🎮 핵심 게임 로직 & AI 엔진
 │   ├── agent.py             # 🤖 AI Agent 클래스 (Perception, Memory, Logic, Risk, Planning)
-│   ├── algorithms.py        # 🧠 에이전트 전략 (Logic + risk, Safe only)
+│   ├── strategies.py        # 🧠 에이전트 전략 (Logic + risk, Safe only)
 │   ├── rules.py             # 📜 명제 논리 추론 엔진 (Knowledge Base & Risk Evaluation)
 │   ├── world.py             # 🗺️ 다중 방 던전(벽·문·입구·출구), 위험 요소(Pit/Wumpus), 지각 신호 생성
 │   ├── scoring.py           # 🎯 점수 규칙 및 원인별 고정 사망 기억 페널티 계산
@@ -48,7 +48,7 @@ wumpus-world/
 | `main.py`                  | 🚀 Pygame 초기화, 윈도우 생성, 마우스/키보드 이벤트 분기 및 메인 루프 실행                                      |
 | `game/world.py`            | 🗺️ 다중 방 던전 생성(클래식 맵/랜덤 맵), 문으로 연결된 방, Pit/Wumpus/Gold 배치, 화살 궤적 계산 및 Percept 발생 |
 | `game/agent.py`            | 🤖 AI Agent 상태 관리, 인지·추론·행동 루프, 사망 기억, 위험 평가 및 경로 계획                                   |
-| `game/algorithms.py`       | 🧠 에이전트 전략(`Logic + risk`, `Safe only`) 정의 및 표시 이름 조회                                            |
+| `game/strategies.py`       | 🧠 에이전트 전략(`Logic + risk`, `Safe only`) 정의 및 표시 이름 조회                                            |
 | `game/rules.py`            | 📜 명제 논리 기반 지식 추론, 과거 실패 기억 통합(`death_memory`), 위험도 점수(`Risk Score`) 산출                |
 | `game/scoring.py`          | 🎯 이동·사격·사망·골드 점수 및 원인별 고정 사망 기억 페널티(`calculate_memory_penalty`) 산정                    |
 | `game/search.py`           | 🔎 공통 BFS·UCS 그래프 탐색 엔진 및 경로 탐색 결과(`cost`, `expanded`) 반환                                     |
@@ -203,7 +203,7 @@ Agent는 주변에서 얻은 감각 정보를 기억에 반영하고, 논리 추
 ### 2. 행동 우선순위 (Decision Hierarchy)
 
 1. **Gold 획득 (`GRAB`)**: 현재 칸에 Glitter 감지 시 즉시 금괴 획득.
-2. **출구로 탈출 (`CLIMB`)**: Gold 소지 시 Search Strategy Selector가 선택한 경로 탐색으로 이동 비용(걸음당 1점)과 사격 비용(10점)을 합산해 출구 경로를 선택합니다. 사격 위치까지의 이동도 포함하며, 비용이 같으면 화살을 보존합니다. 문 진입과 자동 통과는 실제 게임처럼 한 번의 이동으로 계산합니다.
+2. **출구로 탈출 (`CLIMB`)**: Gold 소지 시 경로 탐색 알고리즘 선택기가 이동 비용(걸음당 1점)과 사격 비용(10점)을 합산해 출구 경로를 선택합니다. 사격 위치까지의 이동도 포함하며, 비용이 같으면 화살을 보존합니다. 문 진입과 자동 통과는 실제 게임처럼 한 번의 이동으로 계산합니다.
 3. **안전 구역 탐색 (`EXPLORE_SAFE`)**: 도달 가능한 안전 미방문 셀까지 최소 이동 경로로 탐색합니다. 안전하게 탐색할 곳이 있으면 Wumpus 위치를 알아도 사냥하러 가지 않습니다.
 4. **필요한 사격 (`SHOOT`)**: 확실히 명중하고 처치 후 구덩이 없는 유용한 경로가 열릴 때만 고려합니다. 안전 탐색이 막히면 사격으로 여는 경로 비용과 위험 진입의 예상 비용을 비교합니다. 구덩이가 계속 길을 막으면 사격하지 않습니다. 처치 보너스는 없습니다.
 5. **경계선 위험 감수 (`RISKY_MOVE` / `NAVIGATE_TO_FRONTIER`)**: 안전 탐색 경로가 없으면 전체 경계선에서 `risk × 1000 + 이동 횟수`가 가장 작은 후보를 선택합니다. 현재 위치에서 바로 진입하면 `RISKY_MOVE`, 후보까지 이동해야 하면 `NAVIGATE_TO_FRONTIER` 행동을 사용합니다. 사격으로 안전한 경로를 여는 편이 더 저렴하면 그 경로를 선택합니다. `Safe only`는 위험 진입을 하지 않습니다. Risk Score는 `calculate_cell_risk()`의 추정값이므로 전체 게임의 최적 점수를 보장하지는 않습니다.
@@ -284,7 +284,7 @@ Agent 패널의 **Analytics** 버튼(또는 <kbd>F1</kbd>)을 누르면 드래�
 - **Benchmark**:
   - 전략 비교: `python -m game.benchmark --games 200`은 1~6개 방에서 `Logic + risk`와 `Safe only`를 Auto 경로 탐색으로 비교하고 `strategy_benchmark.csv`에 저장합니다.
   - 경로 탐색 비교: `python -m game.search_benchmark --games 200`은 두 전략에서 BFS, UCS, Auto를 비교하고 `search_benchmark.csv`에 저장합니다.
-  - `--games`는 각 방·전략·경로 탐색 방식 조합에서 플레이할 맵 수입니다.
+  - `--games`는 각 방·전략 조합의 맵 수를 지정합니다. 경로 탐색 비교에서는 각 방·전략·알고리즘 조합마다 해당 수만큼 실행합니다. 방, 전략, 알고리즘, seed 및 CSV 경로는 코드의 기본 설정을 사용합니다.
 
 ---
 

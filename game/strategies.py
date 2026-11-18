@@ -1,8 +1,8 @@
 """
-Agent algorithms available in the game and in the Analytics benchmark.
+Agent strategies available in the game and in the Analytics benchmark.
 
 To compare your own algorithm, subclass `Agent` (or write a class with the same
-interface), override `decide_next_action`, and add it to ALGORITHMS below. It then
+interface), override `decide_next_action`, and add it to STRATEGIES below. It then
 appears in the Analytics window (Dev mode) and in `python -m game.benchmark`.
 
 `decide_next_action` returns one of:
@@ -28,14 +28,14 @@ class SafeOnlyAgent(Agent):
         return action
 
 
-ALGORITHMS = {
+STRATEGIES = {
     "Logic + risk": Agent,
     "Safe only": SafeOnlyAgent,
 }
 
 
-def algorithm_name(agent_class):
-    for name, cls in ALGORITHMS.items():
+def strategy_name(agent_class):
+    for name, cls in STRATEGIES.items():
         if cls is agent_class:
             return name
     return agent_class.__name__
