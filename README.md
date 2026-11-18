@@ -181,7 +181,7 @@ Perception → Memory → Logic → Risk evaluation → Planning → Action
 
 경로 탐색 방식은 자동 선택(`auto`)으로 고정되어 있습니다. Agent는 경로에 사격이 포함될 수 있어 행동 비용이 달라지면 UCS를 선택하고, 이동만 포함되면 BFS를 선택합니다. 화면의 Agent 스위처(`Logic + risk`, `Safe only`)는 탐색 알고리즘이 아니라 Agent의 행동 정책을 바꾸는 기능입니다.
 
-Agent는 부분 관측 환경에서 다음과 같은 **6단계 인지 순환 루프**를 거쳐 행동합니다. 여기서 부분 관측은 환경의 특성을 뜻하며, Agent가 POMDP 알고리즘이나 최적 정책 계산을 수행한다는 의미는 아닙니다.
+Agent는 주변에서 얻은 감각 정보를 기억에 반영하고, 논리 추론과 위험도 평가를 통해 다음 행동을 결정합니다. 행동한 뒤 새로운 정보를 관찰하며 이 **6단계 인지 순환 루프**를 반복합니다.
 
 ```text
 [ 1. Perception ]  -->  [ 2. Memory ]  -->  [ 3. Logic ]
