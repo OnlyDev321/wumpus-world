@@ -10,7 +10,6 @@ All combinations receive the same map seeds within each room count.
 import argparse
 import csv
 import time
-from pathlib import Path
 
 from game.agent import Agent
 from game.algorithms import SafeOnlyAgent
@@ -36,15 +35,15 @@ def planner_agent(planner, policy):
     return BenchmarkAgent
 
 
-def run(games, rooms, planners, policies, base_seed):
+def run(games):
     rows = []
-    for room_count in rooms:
-        for policy in policies:
-            for planner in planners:
+    for room_count in range(World.MIN_ROOMS, World.MAX_ROOMS + 1):
+        for policy in POLICIES:
+            for planner in PLANNERS:
                 agent_class = planner_agent(planner, policy)
                 started = time.perf_counter()
                 results = [
-                    play_one(agent_class, room_count, base_seed + index)
+                    play_one(agent_class, room_count, BASE_SEED + index)
                     for index in range(games)
                 ]
                 row = {
@@ -68,31 +67,21 @@ def run(games, rooms, planners, policies, base_seed):
 def main():
     parser = argparse.ArgumentParser(description="Compare route planners on identical Wumpus maps.")
     parser.add_argument("--games", type=int, default=100, help="maps per room count and planner")
-    parser.add_argument("--rooms", type=int, nargs="+", default=list(range(1, 7)),
-                        choices=range(World.MIN_ROOMS, World.MAX_ROOMS + 1),
-                        help="room counts to compare; default: 1 through 6")
-    parser.add_argument("--planners", nargs="+", choices=PLANNERS, default=list(PLANNERS),
-                        help="planners to compare; default: bfs ucs auto")
-    parser.add_argument("--policies", nargs="+", choices=POLICIES,
-                        default=list(POLICIES),
-                        help="agent policies to compare; default: logic-risk safe-only")
-    parser.add_argument("--seed", type=int, default=BASE_SEED, help="first map seed")
-    parser.add_argument("--output", type=Path, default=Path("search_benchmark.csv"),
-                        help="summary CSV output path")
     args = parser.parse_args()
     if args.games < 1:
         parser.error("--games must be at least 1")
 
-    print(f"{args.games} maps per policy/room/planner; shared seeds starting at {args.seed}")
+    output_path = "search_benchmark.csv"
+    print(f"{args.games} maps per policy/room/planner; shared seeds starting at {BASE_SEED}")
     print(f"{'Rooms':>5} {'Policy':>11} {'Planner':>7} {'Win':>7} {'Pit':>7}"
           f" {'Steps':>9} {'Score':>9} {'ms/decision':>10}")
     started = time.perf_counter()
-    rows = run(args.games, args.rooms, args.planners, args.policies, args.seed)
-    with args.output.open("w", newline="", encoding="utf-8") as output:
+    rows = run(args.games)
+    with open(output_path, "w", newline="", encoding="utf-8") as output:
         writer = csv.DictWriter(output, fieldnames=CSV_FIELDS)
         writer.writeheader()
         writer.writerows(rows)
-    print(f"\nSaved {len(rows)} summary rows to {args.output.resolve()}")
+    print(f"\nSaved {len(rows)} summary rows to {output_path}")
     print(f"Elapsed: {time.perf_counter() - started:.1f}s")
 
 

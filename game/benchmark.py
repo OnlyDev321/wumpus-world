@@ -10,7 +10,6 @@ Command line:
 import argparse
 import csv
 import time
-from pathlib import Path
 
 from game.world import World
 from game.algorithms import ALGORITHMS
@@ -74,23 +73,18 @@ def main():
     parser = argparse.ArgumentParser(description="Compare Wumpus World agent strategies on identical maps.")
     parser.add_argument("--games", type=int, default=100,
                         help="maps per strategy and room count (default: 100)")
-    parser.add_argument("--rooms", type=int, nargs="+", default=list(range(World.MIN_ROOMS, World.MAX_ROOMS + 1)),
-                        choices=range(World.MIN_ROOMS, World.MAX_ROOMS + 1),
-                        help="room counts; default: 1 through 6")
-    parser.add_argument("--algo", "--strategy", dest="algo", action="append",
-                        help="agent strategy name (repeatable); default: all")
-    parser.add_argument("--output", type=Path, default=Path("strategy_benchmark.csv"),
-                        help="summary CSV output path (default: strategy_benchmark.csv)")
     args = parser.parse_args()
     if args.games < 1:
         parser.error("--games must be at least 1")
 
-    names = args.algo or list(ALGORITHMS)
+    rooms_to_test = range(World.MIN_ROOMS, World.MAX_ROOMS + 1)
+    names = list(ALGORITHMS)
+    output_path = "strategy_benchmark.csv"
     print(f"{args.games} games per strategy and room count; route planner: Auto\n")
     print(f"{'Rooms':<7}{'Strategy':<16}{'Win':>7}{'Pit':>7}{'Wumpus':>8}{'Escaped':>9}{'Trapped':>9}{'Kills':>7}"
           f"{'Score':>9}{'Steps':>8}{'Explored':>10}{'ms/step':>9}{'Time':>8}")
     rows = []
-    for rooms in args.rooms:
+    for rooms in rooms_to_test:
         for name in names:
             bench = Benchmark(name, rooms, args.games)
             while not bench.done:
@@ -118,11 +112,11 @@ def main():
                   f"{s['trapped']:>9.0%}{s['kills']:>7.0%}{s['score']:>9.0f}{s['steps']:>8.1f}{s['explored']:>10.0%}"
                   f"{s['think_ms']:>9.2f}{s['seconds']:>7.1f}s")
 
-    with args.output.open("w", newline="", encoding="utf-8") as output:
+    with open(output_path, "w", newline="", encoding="utf-8") as output:
         writer = csv.DictWriter(output, fieldnames=CSV_FIELDS)
         writer.writeheader()
         writer.writerows(rows)
-    print(f"\nSaved {len(rows)} summary rows to {args.output.resolve()}")
+    print(f"\nSaved {len(rows)} summary rows to {output_path}")
 
 
 if __name__ == "__main__":
