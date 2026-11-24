@@ -1,3 +1,5 @@
+from collections import deque
+
 from game.scoring import (
     MOVE_COST,
     SHOT_COST,
@@ -40,6 +42,9 @@ class Agent:
         self.has_arrow = True
         self.is_alive = True
         self.escaped = False
+        self._neighbor_cache = {}
+        self._reasoned_on = None  # inputs of the last deduction, to skip identical re-runs
+
         # Cross-episode memory (persists across map replays)
         self.death_memory = (
             {"pits": set(death_memory.get("pits", set())), "wumpus": death_memory.get("wumpus")}
@@ -80,11 +85,16 @@ class Agent:
 
     def neighbors(self, pos):
         """Cells one step away as far as the agent knows: same room, plus doors it has used."""
+        cached = self._neighbor_cache.get(pos)
+        if cached is not None:
+            return cached
         r, c = pos
         room = self._room(pos)
         result = [nb for nb in ((r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1)) if self._room(nb) == room]
         if pos in self.known_doors:
             result.append(self.known_doors[pos])
+        result = tuple(result)
+        self._neighbor_cache[pos] = result
         return result
 
     def learn_door(self, door, landing):
@@ -92,6 +102,8 @@ class Agent:
         self.known_doors[door] = landing
         self.known_doors[landing] = door
         self.known_cells.update(self._room_cells(landing))
+        self._neighbor_cache.pop(door, None)
+        self._neighbor_cache.pop(landing, None)
 
     def name(self, pos):
         return self._map.label(pos)
@@ -147,6 +159,13 @@ class Agent:
 
     def reason(self, is_wumpus_alive=True):
         """REASONING: applies logic rules and death memory to update the Knowledge Base."""
+        # Percepts of a cell never change and these sets only grow during an episode,
+        # so the deduction depends only on their sizes.
+        inputs = (len(self.visited), len(self.known_cells), len(self.known_doors),
+                  len(self.missed_shots), is_wumpus_alive)
+        if inputs == self._reasoned_on:
+            return
+        self._reasoned_on = inputs
         self.knowledge = deduce_knowledge(
             self.known_cells,
             self.neighbors,
@@ -220,6 +239,24 @@ class Agent:
         """Fewest MOVE actions, counting automatic door crossings correctly."""
         route = self._route_to(set(target_cells) - {self.position}, allowed_cells)
         return [action["to"] for action in route[1]] if route else None
+
+    def _move_distances(self, allowed_cells):
+        """Fewest MOVE actions from the current cell to every reachable cell, doors included."""
+        allowed = set(allowed_cells) | {self.position}
+        dist = {self.position: 0}
+        queue = deque([self.position])
+        while queue:
+            pos = queue.popleft()
+            for target in self.neighbors(pos):
+                if target not in allowed:
+                    continue
+                landing = target
+                if target in self.known_doors and self._room(target) == self._room(pos):
+                    landing = self.known_doors[target]
+                if landing not in dist:
+                    dist[landing] = dist[pos] + 1
+                    queue.append(landing)
+        return dist
 
     def _sure_shot_direction(self, pos, targets):
         if any(self._room(t) != self._room(pos) for t in targets):
@@ -321,23 +358,20 @@ class Agent:
         shot_route = (self._plan_shot(safe, self.knowledge["pit_free"] - self.visited)
                       if is_wumpus_alive and (not self.has_gold or self.exit_pos is None) else None)
 
-        # 5. No safe cells left: pick the lowest-risk cell on the whole explored frontier
+        # 5. No safe cells left: pick the lowest-risk cell on the whole explored frontier.
+        #    One BFS gives every bridge's distance; the route is planned only for the winner.
         frontier_candidates = []
+        moves_to = self._move_distances(safe) if self.ALLOW_RISK else {}
         for v_cell in (self.visited if self.ALLOW_RISK else ()):
+            if v_cell not in moves_to:
+                continue
             for nb in self.neighbors(v_cell):
                 if nb in self.visited:
                     continue
                 risk = calculate_cell_risk(nb, self.knowledge)
                 if risk >= 10:  # confirmed hazard
                     continue
-                if v_cell == self.position:
-                    path_to_bridge, dist = [], 1
-                else:
-                    path_to_bridge = self.find_shortest_path({v_cell}, safe)
-                    if path_to_bridge is None:
-                        continue
-                    dist = len(path_to_bridge) + 1
-                frontier_candidates.append((risk, dist, nb, v_cell, path_to_bridge))
+                frontier_candidates.append((risk, moves_to[v_cell] + 1, nb, v_cell))
 
         if frontier_candidates:
             frontier_candidates.sort(key=lambda item: (item[0] * DEATH_COST + item[1] * MOVE_COST,
@@ -345,7 +379,8 @@ class Agent:
             risk, distance = frontier_candidates[0][:2]
             if shot_route and shot_route[0] < risk * DEATH_COST + distance * MOVE_COST:
                 return self._follow_shot_route(shot_route)
-            lowest_risk, dist, target, bridge, path_to_bridge = frontier_candidates[0]
+            lowest_risk, dist, target, bridge = frontier_candidates[0]
+            path_to_bridge = [] if bridge == self.position else self.find_shortest_path({bridge}, safe)
 
             if bridge == self.position:
                 avoided = [

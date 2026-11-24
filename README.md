@@ -49,7 +49,7 @@ wumpus-world/
 | `game/world.py`            | 🗺️ 다중 방 던전 생성(클래식 맵/랜덤 맵), 문으로 연결된 방, Pit/Wumpus/Gold 배치, 화살 궤적 계산 및 Percept 발생 |
 | `game/agent.py`            | 🤖 AI Agent 상태 관리, 인지·추론·행동 루프, 사망 기억, 위험 평가 및 경로 계획                                   |
 | `game/strategies.py`       | 🧠 에이전트 전략(`Logic + risk`, `Safe only`) 정의 및 표시 이름 조회                                            |
-| `game/rules.py`            | 📜 명제 논리 기반 지식 추론, 과거 실패 기억 통합(`death_memory`), 위험도 점수(`Risk Score`) 산출                |
+| `game/rules.py`            | 📜 명제 논리 기반 지식 추론, 과거 실패 기억 통합(`death_memory`), Pit 확률 계산, 위험도 점수(`Risk Score`) 산출 |
 | `game/scoring.py`          | 🎯 이동·사격·사망·골드 점수 및 원인별 고정 사망 기억 페널티(`calculate_memory_penalty`) 산정                    |
 | `game/search.py`           | 🔎 공통 BFS·UCS 그래프 탐색 엔진 및 경로 탐색 결과(`cost`, `expanded`) 반환                                     |
 | `game/game_manager.py`     | ⚙️ World와 Agent 상호작용 동기화, 사망 원인 기록(`record_death`), Replay 메모리 보존 제어                       |
@@ -199,6 +199,10 @@ Agent는 주변에서 얻은 감각 정보를 기억에 반영하고, 논리 추
   - Wumpus는 세계에 단 1마리만 존재하므로, 감지된 Stench들의 후보군 교집합(Intersection) 크기가 1이 되는 순간 Wumpus의 좌표가 확정됩니다.
 - **Pit 위치 확정**:
   - Breeze가 감지된 셀의 미방문 인접 셀 중, Pit-Free가 아닌 후보 셀이 1개만 남으면 해당 셀은 100% Pit으로 확정됩니다.
+- **Pit 확률 (`pit_probabilities`)**:
+  - 각 Breeze는 "후보 셀 중 최소 1개는 Pit"이라는 제약입니다. 각 칸은 독립적으로 사전 확률 `PIT_PRIOR = 0.15`로 Pit을 가진다고 보고, 모든 Breeze 제약을 만족하는 Pit 배치를 전부 가중합해 칸별 정확한 Pit 확률을 계산합니다.
+  - 후보 셀을 공유하지 않는 Breeze 그룹은 따로 계산합니다. 한 그룹의 후보가 `MAX_EXACT_CELLS = 14`개를 넘으면 Breeze당 `1/k` 근사로 대체합니다.
+  - 이미 확정된 Pit으로 설명되는 Breeze의 후보 셀은 사전 확률을 그대로 사용합니다.
 
 ### 2. 행동 우선순위 (Decision Hierarchy)
 
