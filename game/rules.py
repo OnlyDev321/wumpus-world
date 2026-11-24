@@ -4,6 +4,8 @@ Propositional Logic Reasoning System for Wumpus World AI.
 
 # Chance that an unexplored cell holds a pit (matches World.pit_prob)
 PIT_PRIOR = 0.15
+# Largest group of linked breeze candidates solved exactly (2**n layouts are checked)
+MAX_EXACT_CELLS = 14
 
 
 def deduce_knowledge(cells, neighbors, visited, percepts_history, is_wumpus_alive=True, death_memory=None, missed_shots=None):
@@ -112,16 +114,8 @@ def deduce_knowledge(cells, neighbors, visited, percepts_history, is_wumpus_aliv
         possible_pits.update(candidates)
         breeze_candidates.append(candidates)
 
-    # Rough chance of a pit in each candidate cell: a breeze shared by k unknown cells
-    # gives each of them ~1/k. A breeze already explained by a confirmed pit adds little.
-    pit_chance = {}
-    for candidates in breeze_candidates:
-        unknown = candidates - confirmed_pits
-        if not unknown:
-            continue
-        chance = PIT_PRIOR if candidates & confirmed_pits else 1 / len(unknown)
-        for cell in unknown:
-            pit_chance[cell] = max(pit_chance.get(cell, 0), chance)
+    # Chance of a pit in each candidate cell, given every breeze seen so far.
+    pit_chance = pit_probabilities(breeze_candidates, recalled_pits)
 
     # 5. Determine definitively SAFE cells
     # Safe cell = Pit-Free AND Wumpus-Free (recalled fatal pits are strictly excluded)
@@ -138,6 +132,60 @@ def deduce_knowledge(cells, neighbors, visited, percepts_history, is_wumpus_aliv
         "wumpus_free": wumpus_free,
         "pit_chance": pit_chance,
     }
+
+
+def pit_probabilities(constraints, known_pits=(), prior=PIT_PRIOR, max_cells=MAX_EXACT_CELLS):
+    """
+    Chance of a pit in every cell named by `constraints`.
+
+    Each constraint is the set of unknown cells next to one breeze: at least one of them
+    holds a pit. Pits are independent with chance `prior`, so the answer comes from
+    weighing every pit layout that satisfies all constraints. Cells in `known_pits` are
+    pits for sure. Constraints that share no cell are solved separately; a group larger
+    than `max_cells` falls back to an estimate of 1/k per breeze.
+    """
+    known_pits = set(known_pits)
+    open_constraints = [set(c) - known_pits for c in constraints if not set(c) & known_pits]
+    chances = {cell: 1.0 for c in constraints for cell in set(c) & known_pits}
+
+    # Group constraints that share cells (connected components)
+    groups = []
+    for constraint in open_constraints:
+        merged = [g for g in groups if g[0] & constraint]
+        cells, members = set(constraint), [constraint]
+        for g in merged:
+            groups.remove(g)
+            cells |= g[0]
+            members += g[1]
+        groups.append((cells, members))
+
+    for constraint in constraints:
+        for cell in set(constraint) - known_pits:
+            chances.setdefault(cell, prior)  # cells whose breeze is already explained
+
+    for cells, members in groups:
+        order = sorted(cells)
+        if len(order) > max_cells:
+            for constraint in members:
+                for cell in constraint:
+                    chances[cell] = max(chances.get(cell, 0), 1 / len(constraint))
+            continue
+        bit = {cell: 1 << i for i, cell in enumerate(order)}
+        masks = [sum(bit[cell] for cell in constraint) for constraint in members]
+        n = len(order)
+        weight_of = [prior ** k * (1 - prior) ** (n - k) for k in range(n + 1)]
+        total = 0.0
+        per_cell = [0.0] * n
+        for layout in range(1 << n):
+            if all(layout & mask for mask in masks):
+                weight = weight_of[layout.bit_count()]
+                total += weight
+                for i in range(n):
+                    if layout >> i & 1:
+                        per_cell[i] += weight
+        for i, cell in enumerate(order):
+            chances[cell] = round(per_cell[i] / total, 6)
+    return chances
 
 
 def calculate_cell_risk(cell, knowledge):
