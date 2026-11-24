@@ -36,15 +36,11 @@ wumpus-world/
 │   ├── paths.py             # 🧭 에셋 경로 해석 헬퍼
 │   ├── theme.py             # 🌗 라이트/다크 테마 토큰
 │   └── sound_manager.py     # 🔊 저지연 오디오 시스템 (Breeze, Stench, Glitter, Scream, Door, Pit, Wumpus, Gold)
-├── assets/                  # 🖼️ 2D 스프라이트, 글꼴 및 사운드 에셋
-│   ├── fonts/                # Pretendard 글꼴 파일
-│   ├── hero.png, door.png, floor.png, wumpus.png, pit.png, gold.png...
-│   └── sounds/              # 🎵 16-bit PCM WAV 사운드 이펙트
-│       ├── breeze.wav, stench.wav, glitter.wav, scream.wav, door.wav, pit.wav, wumpus.wav, gold.wav
-└── tests/                   # 🧪 unittest 단위 테스트 (Agent, 추론 규칙, 경로 탐색)
-    ├── test_agent.py
-    ├── test_rules.py
-    └── test_search.py
+└── assets/                  # 🖼️ 2D 스프라이트, 글꼴 및 사운드 에셋
+    ├── fonts/                # Pretendard 글꼴 파일
+    ├── hero.png, door.png, floor.png, wumpus.png, pit.png, gold.png...
+    └── sounds/              # 🎵 16-bit PCM WAV 사운드 이펙트
+        ├── breeze.wav, stench.wav, glitter.wav, scream.wav, door.wav, pit.wav, wumpus.wav, gold.wav
 ```
 
 | 모듈 / 파일                | 역할                                                                                                            |
@@ -346,12 +342,6 @@ pip install -r requirements.txt
 
 ```bash
 python main.py
-```
-
-### 5. 테스트 실행
-
-```bash
-python -m unittest discover tests
 ```
 
 ---
