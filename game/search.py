@@ -33,25 +33,28 @@ def _result(parent, action, state, cost, expanded):
 
 
 def bfs_search(start, is_goal, successors):
-    """Find a path with the fewest transitions using breadth-first search."""
+    """Find a path with the fewest transitions using breadth-first search.
+
+    Step costs do not affect the order; the reported cost is the real path cost.
+    """
 
     frontier = deque([start])
     reached = {start}
     parent = {start: (None, None)}
-    depth = {start: 0}
+    path_cost = {start: 0}
     expanded = 0
 
     while frontier:
         state = frontier.popleft()
         if is_goal(state):
-            return _result(parent, None, state, depth[state], expanded)
+            return _result(parent, None, state, path_cost[state], expanded)
         expanded += 1
-        for next_state, action, _step_cost in successors(state):
+        for next_state, action, step_cost in successors(state):
             if next_state in reached:
                 continue
             reached.add(next_state)
             parent[next_state] = (state, action)
-            depth[next_state] = depth[state] + 1
+            path_cost[next_state] = path_cost[state] + step_cost
             frontier.append(next_state)
     return None
 
