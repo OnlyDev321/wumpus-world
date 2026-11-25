@@ -267,7 +267,7 @@ class Board:
             self.cells.clear()
             self.pos.clear()
         elif name == "theme":
-            self.p.theme = LIGHT if self.p.theme is DARK else DARK
+            self.p.theme = LIGHT if self.p.dark else DARK
 
     def handle(self, event):
         if event.type == pygame.MOUSEMOTION:
@@ -402,7 +402,7 @@ class Board:
                 p.text(f"•  {tip}", (card.x + 24, y + 28 + i * 24), 13, t["text2"])
 
         p.text("Grid size  ·  Clear (C)  ·  Theme (T)", (card.x + 24, card.bottom - 86), 12, t["text3"])
-        labels = {"minus": "−", "plus": "+", "clear": "Clear", "theme": "Light" if p.theme is DARK else "Dark"}
+        labels = {"minus": "−", "plus": "+", "clear": "Clear", "theme": "Light" if p.dark else "Dark"}
         for rect, name in self.buttons:
             hovered = rect.collidepoint(self.mouse)
             primary = name in ("minus", "plus")

@@ -46,7 +46,7 @@ class Renderer:
     # ------------------------------------------------------------------
     @property
     def dark(self):
-        return self.p.theme is DARK
+        return self.p.dark
 
     def set_dark(self, value):
         self.p.theme = DARK if value else LIGHT

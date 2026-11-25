@@ -3,7 +3,7 @@ import pygame
 import pygame.freetype
 import pygame.gfxdraw
 
-from ui.theme import LIGHT
+from ui.theme import DARK, LIGHT, blend, os_watcher
 from ui.paths import asset
 
 # Bundled Pretendard (SIL OFL, see assets/fonts/LICENSE.txt): covers Latin and Hangul,
@@ -37,8 +37,49 @@ class Painter:
         pygame.freetype.init()
         self.screen = screen
         self.k = screen.get_width() / logical_width
-        self.theme = LIGHT
         self._fonts = {}
+        # The theme follows the OS (also while running); the Dark theme switch overrides it
+        # until the OS appearance changes again. Switching crossfades over FADE_MS.
+        self._os = os_watcher()
+        self._os_version = self._os.version
+        self._target = DARK if self._os.dark else LIGHT
+        self._from = self._target
+        self._t0 = -self.FADE_MS
+        self._frame = (None, None)  # (ticks, blended theme) cache for the current frame
+
+    FADE_MS = 280
+
+    # ------------------------------------------------------------------
+    # Theme
+    # ------------------------------------------------------------------
+    @property
+    def theme(self):
+        if self._os.version != self._os_version:
+            self._os_version = self._os.version
+            self.theme = DARK if self._os.dark else LIGHT
+        now = pygame.time.get_ticks()
+        elapsed = now - self._t0
+        if elapsed >= self.FADE_MS or self._from is self._target:
+            return self._target
+        if self._frame[0] != now:
+            x = elapsed / self.FADE_MS
+            self._frame = (now, blend(self._from, self._target, x * x * (3 - 2 * x)))
+        return self._frame[1]
+
+    @theme.setter
+    def theme(self, value):
+        if value is self._target:
+            return
+        self._from = self.theme  # start from whatever is on screen (may be mid-fade)
+        self._target = value
+        self._t0 = pygame.time.get_ticks()
+        self._frame = (None, None)
+
+    @property
+    def dark(self):
+        """Whether the theme is (or is fading to) dark."""
+        self.theme
+        return self._target is DARK
 
     # ------------------------------------------------------------------
     # Scaling

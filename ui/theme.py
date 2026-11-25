@@ -72,3 +72,87 @@ DARK = {
     "switch_off": (77, 77, 78),
     "overlay": (23, 23, 26, 200),
 }
+
+
+def _os_prefers_dark():
+    """Best-effort read of the OS light/dark setting; None when it cannot be determined."""
+    import subprocess
+    import sys
+
+    def run(*cmd):
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=1)
+            return out.returncode, out.stdout.strip().lower()
+        except (OSError, subprocess.SubprocessError):
+            return None, ""
+
+    if sys.platform == "darwin":
+        # The key exists (with value "Dark") only while dark mode is on.
+        code, out = run("defaults", "read", "-g", "AppleInterfaceStyle")
+        return code == 0 and "dark" in out if code is not None else None
+    if sys.platform.startswith("win"):
+        try:
+            import winreg
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                 r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+            value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+            return value == 0
+        except OSError:
+            return None
+    # Linux / BSD desktops (GNOME, and others that honour the freedesktop key)
+    code, out = run("gsettings", "get", "org.gnome.desktop.interface", "color-scheme")
+    if code == 0 and out:
+        return "dark" in out
+    code, out = run("gsettings", "get", "org.gnome.desktop.interface", "gtk-theme")
+    if code == 0 and out:
+        return "dark" in out
+    return None
+
+
+def system_theme():
+    """Theme matching the OS appearance (light when unknown). Users can still toggle it."""
+    return DARK if _os_prefers_dark() else LIGHT
+
+
+class _OSWatcher:
+    """Polls the OS appearance in a background thread; `version` bumps on every change."""
+
+    INTERVAL = 1.5  # seconds
+
+    def __init__(self):
+        import threading
+        self.dark = bool(_os_prefers_dark())
+        self.version = 0
+        threading.Thread(target=self._loop, name="os-theme-watcher", daemon=True).start()
+
+    def _loop(self):
+        import time
+        while True:
+            time.sleep(self.INTERVAL)
+            value = _os_prefers_dark()
+            if value is not None and value != self.dark:
+                self.dark = value
+                self.version += 1
+
+
+_watcher = None
+
+
+def os_watcher():
+    """Shared watcher, started on first use."""
+    global _watcher
+    if _watcher is None:
+        _watcher = _OSWatcher()
+    return _watcher
+
+
+def blend(a, b, t):
+    """Theme halfway between `a` and `b` (t = 0..1), used for the crossfade."""
+    out = {}
+    for key, vb in b.items():
+        va = a.get(key, vb)
+        if isinstance(vb, tuple) and isinstance(va, tuple) and len(va) == len(vb):
+            out[key] = tuple(round(x + (y - x) * t) for x, y in zip(va, vb))
+        else:
+            out[key] = vb
+    return out
