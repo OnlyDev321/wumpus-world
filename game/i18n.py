@@ -12,6 +12,7 @@ Values may themselves be messages (e.g. a direction) and are translated the same
 def _system_language():
     """Korean UI when the OS language is Korean, English for every other language."""
     import os
+    import re
     import subprocess
     import sys
 
@@ -28,8 +29,8 @@ def _system_language():
     elif sys.platform.startswith("win"):
         try:
             import ctypes
-            if ctypes.windll.kernel32.GetUserDefaultUILanguage() & 0x3FF == 0x12:  # LANG_KOREAN
-                return "ko"
+            # The display language decides; the region/locale may be Korean on an English UI.
+            return "ko" if ctypes.windll.kernel32.GetUserDefaultUILanguage() & 0x3FF == 0x12 else "en"
         except (AttributeError, OSError):
             pass
     for var in ("LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"):
@@ -42,7 +43,9 @@ def _system_language():
     except (ValueError, TypeError):
         pass
     first = next((c for c in candidates if c and c not in ("C", "POSIX")), "")
-    return "ko" if first.lower().replace("_", "-").startswith(("ko", "korean")) else "en"
+    # "ko-KR", "ko_KR.UTF-8", "ko:en", "Korean_Korea" -> Korean; "kok" (Konkani) is not
+    code = re.split(r"[-_.:@]", first.lower(), maxsplit=1)[0]
+    return "ko" if code in ("ko", "korean") else "en"
 
 
 _language = _system_language()
