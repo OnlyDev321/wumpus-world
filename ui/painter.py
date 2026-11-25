@@ -3,7 +3,7 @@ import pygame
 import pygame.freetype
 import pygame.gfxdraw
 
-from ui.theme import LIGHT
+from ui.theme import system_theme
 from ui.paths import asset
 
 # Bundled Pretendard (SIL OFL, see assets/fonts/LICENSE.txt): covers Latin and Hangul,
@@ -37,7 +37,7 @@ class Painter:
         pygame.freetype.init()
         self.screen = screen
         self.k = screen.get_width() / logical_width
-        self.theme = LIGHT
+        self.theme = system_theme()  # follows the OS; the Dark theme switch still overrides it
         self._fonts = {}
 
     # ------------------------------------------------------------------

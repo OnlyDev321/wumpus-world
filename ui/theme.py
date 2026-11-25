@@ -72,3 +72,43 @@ DARK = {
     "switch_off": (77, 77, 78),
     "overlay": (23, 23, 26, 200),
 }
+
+
+def _os_prefers_dark():
+    """Best-effort read of the OS light/dark setting; None when it cannot be determined."""
+    import subprocess
+    import sys
+
+    def run(*cmd):
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=1)
+            return out.returncode, out.stdout.strip().lower()
+        except (OSError, subprocess.SubprocessError):
+            return None, ""
+
+    if sys.platform == "darwin":
+        # The key exists (with value "Dark") only while dark mode is on.
+        code, out = run("defaults", "read", "-g", "AppleInterfaceStyle")
+        return code == 0 and "dark" in out if code is not None else None
+    if sys.platform.startswith("win"):
+        try:
+            import winreg
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                 r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+            value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+            return value == 0
+        except OSError:
+            return None
+    # Linux / BSD desktops (GNOME, and others that honour the freedesktop key)
+    code, out = run("gsettings", "get", "org.gnome.desktop.interface", "color-scheme")
+    if code == 0 and out:
+        return "dark" in out
+    code, out = run("gsettings", "get", "org.gnome.desktop.interface", "gtk-theme")
+    if code == 0 and out:
+        return "dark" in out
+    return None
+
+
+def system_theme():
+    """Theme matching the OS appearance (light when unknown). Users can still toggle it."""
+    return DARK if _os_prefers_dark() else LIGHT

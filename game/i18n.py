@@ -7,7 +7,45 @@ everything on screen, including log lines and the agent's reasoning written earl
 Values may themselves be messages (e.g. a direction) and are translated the same way.
 """
 
-_language = "en"
+
+
+def _system_language():
+    """Korean UI when the OS language is Korean, English for every other language."""
+    import os
+    import subprocess
+    import sys
+
+    candidates = []
+    if sys.platform == "darwin":
+        try:  # preferred UI languages, e.g. ("ko-KR", "en-US")
+            out = subprocess.run(["defaults", "read", "-g", "AppleLanguages"],
+                                 capture_output=True, text=True, timeout=1).stdout
+            first = out.strip("()\n ").split(",")[0].strip().strip('"')
+            if first:
+                candidates.append(first)
+        except (OSError, subprocess.SubprocessError):
+            pass
+    elif sys.platform.startswith("win"):
+        try:
+            import ctypes
+            if ctypes.windll.kernel32.GetUserDefaultUILanguage() & 0x3FF == 0x12:  # LANG_KOREAN
+                return "ko"
+        except (AttributeError, OSError):
+            pass
+    for var in ("LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"):
+        if os.environ.get(var):
+            candidates.append(os.environ[var])
+            break
+    try:
+        import locale
+        candidates.append(locale.getlocale()[0] or "")
+    except (ValueError, TypeError):
+        pass
+    first = next((c for c in candidates if c and c not in ("C", "POSIX")), "")
+    return "ko" if first.lower().replace("_", "-").startswith(("ko", "korean")) else "en"
+
+
+_language = _system_language()
 
 LANGUAGES = [("en", "EN"), ("ko", "한국어")]
 
